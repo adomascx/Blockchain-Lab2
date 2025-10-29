@@ -1,7 +1,5 @@
 # Blockchain Lab v0.1
 
-Trumpai: tai vieno kompiuterio "proof‑of‑work" žaidimų aikštelė. Sugeneruojame 1 000 naudotojų, 10 000 transakcijų, blokus po 100 transakcijų ir kasame iki kol baseine nelieka ką kasti. Viskas skirta suprasti mechaniką, ne kurti produkcinę grandinę.
-
 ## Greita apžvalga
 
 * **Hashas**: mūsų PHA256 (iš 1 LD). Naudojamas ir transakcijų/šaknies skaičiavimui, ir PoW.
