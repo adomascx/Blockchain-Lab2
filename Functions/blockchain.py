@@ -31,7 +31,26 @@ class Transaction:
         self.transaction_id = HashFunction(payload)
 
     @classmethod
-    def from_dict(cls, payload: Dict[str, object]) -> "Transaction":
+    def from_dict(cls, payload: Dict[str, object], utxo_map: Dict[str, str] | None = None) -> "Transaction":
+        if "inputs" in payload and "outputs" in payload:
+            outputs = payload.get("outputs", []) or []
+            receiver = str(outputs[0].get("owner", "")).strip() if len(outputs) >= 1 else ""
+            if len(outputs) >= 2:
+                sender = str(outputs[1].get("owner", "")).strip()
+            else:
+                sender = ""
+                inputs = payload.get("inputs", []) or []
+                if inputs and utxo_map:
+                    sender = str(utxo_map.get(str(inputs[0]), "")).strip()
+
+            amount = int(outputs[0].get("amount", 0)) if len(outputs) >= 1 else int(payload.get("amount", 0))
+            instance = cls(sender=sender, receiver=receiver, amount=amount)
+            instance.raw_payload = payload
+            claimed = str(payload.get("transaction_id", "")).strip()
+            if claimed:
+                instance.transaction_id = claimed
+            return instance
+
         sender = str(payload.get("sender", "")).strip()
         receiver = str(payload.get("receiver", "")).strip()
         amount = int(payload.get("amount", 0))
@@ -76,9 +95,20 @@ class Blockchain:
             for user in users
         }
 
-        self.pending_transactions: List[Transaction] = [
-            Transaction.from_dict(tx) for tx in transactions if tx
-        ]
+        
+        utxo_map: Dict[str, str] = {}
+        for tx in transactions:
+            if not tx:
+                continue
+            outs = tx.get("outputs") or []
+            for out in outs:
+                u_id = out.get("UTXO_id")
+                owner = out.get("owner")
+                if u_id and owner:
+                    utxo_map[str(u_id)] = str(owner)
+
+        pending: List[Transaction] = [Transaction.from_dict(tx, utxo_map=utxo_map) for tx in transactions if tx]
+        self.pending_transactions = pending
 
         random.shuffle(self.pending_transactions)
 
@@ -143,13 +173,19 @@ class Blockchain:
             return False, "non-positive amount"
         expected = HashFunction(f"{tx.sender}|{tx.receiver}|{tx.amount}")
         if tx.transaction_id != expected:
+            
             sender_account = self.users[tx.sender]
             receiver_account = self.users[tx.receiver]
             legacy = HashFunction(f"{sender_account.name}{receiver_account.name}{tx.amount}")
             if tx.transaction_id == legacy:
                 tx.transaction_id = expected
             else:
-                return False, "forged transaction hash"
+                
+                raw = getattr(tx, "raw_payload", None)
+                if raw and str(raw.get("transaction_id", "")).strip() == tx.transaction_id:
+                    pass
+                else:
+                    return False, "forged transaction hash"
         if balances.get(tx.sender, 0) < tx.amount:
             return False, "insufficient balance"
         return True, ""

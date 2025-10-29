@@ -37,18 +37,4 @@ def transactionGeneration():
         tx_id = HashFunction(inp["UTXO_id"] + out_recv["UTXO_id"] + (outputs[1]["UTXO_id"] if len(outputs) > 1 else ""))
         transactions.append({"transaction_id": tx_id, "inputs": [inp["UTXO_id"]], "outputs": outputs})
         
-        sender_pk = inp.get("owner")
-        sender_user = next((u for u in users if u.get("public_key") == sender_pk), None)
-        pct = random.uniform(0.01, 0.15)
-        if sender_user:
-            amount = max(1, int(float(sender_user.get("balance", 0)) * pct))
-        else:
-            amount = max(1, int(inp.get("amount", 0) * pct))
-
-        transactions.append({
-            "transaction_id": HashFunction(f"{sender_pk}|{receiver['public_key']}|{amount}"),
-            "sender": sender_pk,
-            "receiver": receiver["public_key"],
-            "amount": amount,
-        })
     return transactions
