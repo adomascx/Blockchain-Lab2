@@ -12,5 +12,5 @@ def userGeneration():
         })
     return users
 
-with open("users.json", "w", encoding="utf-8") as f:
+with open("json/users_start.json", "w", encoding="utf-8") as f:
     json.dump({"users": userGeneration()}, f, indent=2)
