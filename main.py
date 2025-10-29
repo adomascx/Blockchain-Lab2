@@ -29,10 +29,10 @@ def run_blockchain() -> None:
     users = read_json(USERS_START, "users")
     transactions = read_json(TRANSACTIONS, "transactions")
     if not users:
-        print("No users found. Generate users first.")
+        print("No user records found. Please generate users before starting the miner.")
         return
     if not transactions:
-        print("No transactions found. Generate transactions first.")
+        print("No transactions found. Please generate transactions before mining.")
         return
 
     print(f"Loaded {len(users)} users and {len(transactions)} pending transactions.")
@@ -40,14 +40,14 @@ def run_blockchain() -> None:
     chain.mine_pending_transactions()
     chain.save_state(CHAIN_DUMP, USERS_END)
     if chain.rejected:
-        print(f"{len(chain.rejected)} transactions were tossed for being invalid.")
-    print(f"Blockchain contains {len(chain.chain)} blocks. State dumped to {CHAIN_DUMP}.")
+        print(f"{len(chain.rejected)} transactions were rejected during validation.")
+    print(f"Blockchain now contains {len(chain.chain)} blocks. State saved to {CHAIN_DUMP}.")
 
 
 def menu_choice() -> bytes:
     choice = msvcrt.getch()
     while choice not in [b"1", b"2", b"3", b"4"]:
-        print("\nPick 1, 2, 3, or 4. That isn't complicated.\n")
+        print("\nPlease enter 1, 2, 3, or 4.\n")
         choice = msvcrt.getch()
     return choice
 
@@ -59,11 +59,11 @@ while True:
     if selected == b"1":
         users = userGeneration()
         write_json(USERS_START, "users", users)
-        print("\nUsers generated.\n")
+        print("\nUser dataset generated.\n")
     elif selected == b"2":
         transactions = transactionGeneration()
         write_json(TRANSACTIONS, "transactions", transactions)
-        print("\nTransactions generated.\n")
+        print("\nTransaction dataset generated.\n")
     elif selected == b"3":
         run_blockchain()
     elif selected == b"4":

@@ -37,7 +37,7 @@ def HashFunction(string: str):
 
 
     def _safe_abs(v: float) -> float:
-        """NaN -> 0.0, ±inf -> MAX_DOUBLE/2, else abs."""
+        """Return a bounded absolute value, handling NaN and infinities explicitly."""
         if math.isnan(v):
             return 0.0
         if math.isinf(v):
@@ -109,13 +109,13 @@ def HashFunction(string: str):
             # Treat as iterable of ints
             buf = bytes(int(b) & 0xFF for b in data)
 
-        # Seeds
+    # Initial seed values for the iterative hash state
         x = 0.31830988618379067154  # 1/pi
         y = 0.41421356237309504880  # sqrt(2) - 1
         z = 0.23205080756887729352  # sqrt(3)/3
         phase = 0.0
 
-        # Iterate bytes
+    # Iterate over each byte in the buffer
         for c in buf:
             angle = float(c) + 37.0 * phase + z * 911.0
             s = math.sin(angle)
@@ -130,7 +130,7 @@ def HashFunction(string: str):
             phase = phase + (float(c) * 0.0078125) + ((s * co) * 0.03125)  # c/128 + (s*co)/32
             phase = math.fmod(phase, 1024.0)
 
-        # Composite magnitudes
+    # Compute composite magnitudes for the final digest stage
         mag1 = _safe_abs(x + 0.61803398874989484820 * y + 0.5 * z)
         mag2 = _safe_abs(y - 0.70710678118654752440 * x + 1.25 * z)
 

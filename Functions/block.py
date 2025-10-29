@@ -4,11 +4,7 @@ from Functions.hash import HashFunction
 
 
 class Block:
-    """
-    Block class for blockchain implementation.
-    
-    Contains header with metadata and body with transactions.
-    """
+    """Represent a block composed of a header and an ordered transaction list."""
     
     def __init__(
         self,
@@ -38,16 +34,11 @@ class Block:
         # Body
         self.transactions = transactions
         
-        # Calculate merkle root (hash of all transactions)
+        # Calculate the Merkle-style root by hashing all transaction identifiers
         self.merkle_root = self._calculate_merkle_root()
     
     def _calculate_merkle_root(self) -> str:
-        """
-        Calculate the hash of all transactions using pha256().
-        
-        Returns:
-            Merkle root hash as a string
-        """
+        """Calculate the hash of all transactions using the project HashFunction."""
         transaction_ids = [
             str(tx.get("transaction_id", "")) for tx in self.transactions
         ]
@@ -55,12 +46,7 @@ class Block:
         return HashFunction(combined)
     
     def get_header(self) -> Dict[str, Any]:
-        """
-        Get the block header as a dictionary.
-        
-        Returns:
-            Dictionary containing all header fields
-        """
+        """Return the block header as a dictionary."""
         return {
             "PrevBlockHash": self.prev_block_hash,
             "Timestamp": self.timestamp,
@@ -71,30 +57,20 @@ class Block:
         }
     
     def get_body(self) -> List[Dict[str, Any]]:
-        """
-        Get the block body (transactions).
-        
-        Returns:
-            List of transactions
-        """
+        """Return the transactions stored in the block body."""
         return self.transactions
     
     def calculate_hash(self) -> str:
-        """
-        Calculate the hash of the entire block.
-        
-        Returns:
-            Block hash as a string
-        """
+        """Return the hash of the serialized block header."""
         header_string = str(self.get_header())
         return HashFunction(header_string)
     
     def __repr__(self) -> str:
-        """String representation of the block."""
+        """Provide a concise representation for debugging."""
         return f"Block(PrevHash={self.prev_block_hash[:16]}..., Transactions={len(self.transactions)}, Nonce={self.nonce})"
     
     def __str__(self) -> str:
-        """Detailed string representation of the block."""
+        """Provide a human-readable description of the block contents."""
         return f"""
 Block Details:
 --------------
