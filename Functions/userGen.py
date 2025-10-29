@@ -1,6 +1,6 @@
 import json
 import random
-from Functions.hash import HashFunction
+from functions.hash import HashFunction
 
 def userGeneration():
     users = []

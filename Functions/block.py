@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Dict, Any
-from Functions.hash import HashFunction
+from functions.hash import HashFunction
 
 
 class Block:

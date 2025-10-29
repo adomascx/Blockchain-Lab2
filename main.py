@@ -2,9 +2,9 @@ import json
 import msvcrt
 import os
 
-from Functions.blockchain import Blockchain
-from Functions.transGen import transactionGeneration
-from Functions.userGen import userGeneration
+from functions.blockchain import Blockchain
+from functions.transGen import transactionGeneration
+from functions.userGen import userGeneration
 
 USERS_START = "json/users_start.json"
 USERS_END = "json/users_end.json"

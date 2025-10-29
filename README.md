@@ -1,39 +1,111 @@
 # Blockchain Lab v0.1
 
-Blockchain Lab v0.1 is a centralized proof-of-work environment designed for experimenting with account-model transactions and block assembly. The project processes 10,000 generated transfers against 1,000 synthetic accounts, applies a custom PHA256 hash function, and persists the resulting chain state for review. The implementation favors clarity and traceability for instructional use while remaining faithful to core blockchain concepts.
+Trumpai: tai vieno kompiuterio "proof‑of‑work" žaidimų aikštelė. Sugeneruojame 1 000 naudotojų, 10 000 transakcijų, blokus po 100 transakcijų ir kasame iki kol baseine nelieka ką kasti. Viskas skirta suprasti mechaniką, ne kurti produkcinę grandinę.
 
-## System Overview
+## Greita apžvalga
 
-- **Accounts**: `Functions/userGen.py` produces 1,000 deterministic user records with reproducible public keys derived from their index and balances sampled from the interval `[100, 1_000_000]`.
-- **Transactions**: `Functions/transGen.py` generates 10,000 random transfers. Each transaction identifier hashes the sender, receiver, amount, and ordinal value to reduce the risk of collisions.
-- **Blocks**: The header stores the previous hash, timestamp, version, nonce, difficulty target, and a deterministic transaction root. The body records 100 validated transactions per block.
-- **Blockchain Core**: `Functions/blockchain.py` manages account state, transaction validation, proof-of-work, and persistence. Shadow balances protect intra-block consistency.
-- **Hashing**: `Functions/hash.py` centralizes hashing. Proof-of-work iterates until the computed hash satisfies a three-leading-zero target.
+* **Hashas**: mūsų PHA256 (iš 1 LD). Naudojamas ir transakcijų/šaknies skaičiavimui, ir PoW.
+* **PoW tikslas**: bloko antraštės hash turi prasidėti **mažiausiai trimis nuliais**.
+* **Duomenys**: 1 000 vartotojų su balansais `[100, 1_000_000]`, 10 000 transakcijų.
+* **Bloko dydis**: ~100 patikrintų transakcijų viename bloke.
+* **Saugojimas**: rezultatai JSON formatu `json/` kataloge.
 
-## Running the Application
+## Turinys
 
-1. Execute `python main.py` from the repository root.
-2. Select option `1` to generate `json/users_start.json` with 1,000 accounts.
-3. Select option `2` to generate `json/transactions.json` with 10,000 transactions.
-4. Select option `3` to mine blocks until the pending pool is exhausted or no valid transactions remain. Results are written to `json/blockchain.json`, and final balances are saved to `json/users_end.json`.
+- [Blockchain Lab v0.1](#blockchain-lab-v01)
+  - [Greita apžvalga](#greita-apžvalga)
+  - [Turinys](#turinys)
+  - [Kaip paleisti](#kaip-paleisti)
+  - [Ką pamatysite konsolėje](#ką-pamatysite-konsolėje)
+    - [Konsolės pavyzdys](#konsolės-pavyzdys)
+  - [Kaip veikia viduje](#kaip-veikia-viduje)
+    - [Blokas](#blokas)
+    - [Transakcijos (UTXO)](#transakcijos-utxo)
+    - [Taisyklės](#taisyklės)
+    - [Kasimas](#kasimas)
+  - [Failų žemėlapis](#failų-žemėlapis)
+  - [Nustatymai](#nustatymai)
 
-The mining workflow performs input validation. If user or transaction data is missing, the application reports the issue and stops the run.
+## Kaip paleisti
 
-## Console Snapshot
+1. Paleiskite iš repo šaknies:
 
-![Console mining output](docs/console-output.png)
+   ```bash
+   python main.py
+   ```
 
-## Repository Map
+2. Meniu pasirinkimai:
 
-- `main.py`: Command-line interface for dataset generation and mining operations.
-- `Functions/block.py`: Block data structure with deterministic transaction root hashing.
-- `Functions/blockchain.py`: Core engine implementing validation, proof-of-work, state updates, and persistence.
-- `Functions/userGen.py` and `Functions/transGen.py`: Data generation utilities for accounts and transactions.
-- `json/*.json`: Input and output datasets, including snapshots of user balances and block history.
-- `docs/console-output.png`: Example mining output.
+   * `1` – sugeneruoja `json/users_start.json` (1 000 vartotojų).
+   * `2` – sugeneruoja `json/transactions.json` (10 000 transakcijų).
+   * `3` – kasa blokus iki kol baseinas ištuštėja. Išvestis:
 
-## Additional Notes
+     * `json/blockchain.json` – blokų grandinė;
+     * `json/users_end.json` – galutiniai balansai.
 
-- Difficulty level `3` balances demonstration speed with a meaningful proof-of-work exercise.
-- Invalid transactions (for example, incorrect hashes, missing participants, or insufficient balances) are rejected and recorded in the chain dump for later inspection.
-- The project intentionally omits decentralization and security features. It serves as a structured sandbox for understanding the mechanics of block validation.
+Jei kažko trūksta (pvz., nesugeneruoti vartotojai ar transakcijos), programa tai pasakys ir sustos.
+
+## Ką pamatysite konsolėje
+
+* Transakcijų rinkimo ir validavimo žingsnius.
+* Kasančio nonco paiešką.
+* Rasto bloko suvestinę: antraštę, transakcijų skaičių, hash.
+
+### Konsolės pavyzdys
+
+<img src="console-output.png" alt="Console mining output" width="600" />
+
+## Kaip veikia viduje
+
+### Blokas
+
+* **Antraštė**: previous_hash, timestamp, version, nonce, difficulty, tx_root.
+* **Turinys**: 100 validžių transakcijų.
+
+### Transakcijos (UTXO)
+
+Generatorius kuria UTXO tipo pervedimus ir palaiko laikiną UTXO rinkinį, kad nuorodos būtų į *nesunaudotus* išėjimus. Mineris šiuos duomenis interpretuoja paskyrų lygmeniu, todėl tikrina tik siuntėjo ir gavėjo balansus.
+
+**Forma** (`json/transactions.json`):
+
+```json
+{
+  "transaction_id": "...",
+  "inputs": ["<consumed_utxo_id>", "..."],
+  "outputs": [
+    {"UTXO_id": "...", "owner": "<receiver_public_key>", "amount": 2500},
+    {"UTXO_id": "...", "owner": "<change_public_key>", "amount": 7500}
+  ]
+}
+```
+
+### Taisyklės
+
+* Siuntėjas ir gavėjas turi egzistuoti vartotojų sąraše.
+* Suma turi būti teigiama ir neviršyti siuntėjo balanso (naudojama „šešėlinė“ balansų kopija bloko rinkimo metu).
+* `transaction_id` turi sutapti su `Hash(sender|receiver|amount)` (yra išlyga suderinamumui su ankstesniu formatu).
+
+### Kasimas
+
+1. Iš baseino paimame ~100 valid transakcijų.
+2. Skaičiuojame antraštės hash su skirtingais `nonce` iki kol gauname `000...` pradžią.
+3. Patvirtinus bloką:
+
+    * transakcijas pašaliname iš baseino;
+    * atnaujiname vartotojų balansus;
+    * bloką pridedame prie `json/blockchain.json`.
+
+## Failų žemėlapis
+
+* `main.py` – paprastas meniu trijoms užduotims.
+* `functions/block.py` – bloko struktūra ir šaknies skaičiavimas.
+* `functions/blockchain.py` – validavimas, PoW, būsena, išsaugojimas.
+* `functions/userGen.py`, `functions/transGen.py` – duomenų generatoriai.
+* `functions/hash.py` – centralizuotas PHA256 kvietimas.
+* `json/*.json` – įvestys ir išvestys.
+* `console-output.png` – konsolės pavyzdys.
+
+## Nustatymai
+
+* **Difficulty**: `3`. Greita demonstracija, bet matomas PoW efektas.
+* **Bloko dydis**: `~100` transakcijų. Keiskite, jei norite pamatyti kitą dinamiką.

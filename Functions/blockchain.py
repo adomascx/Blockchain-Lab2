@@ -5,8 +5,8 @@ import random
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 
-from Functions.block import Block
-from Functions.hash import HashFunction
+from functions.block import Block
+from functions.hash import HashFunction
 
 
 @dataclass
