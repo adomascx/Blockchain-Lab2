@@ -48,11 +48,11 @@ class Block:
         Returns:
             Merkle root hash as a string
         """
-        # Combine all transactions into a single string
-        transactions_string = str(self.transactions)
-        
-        # Use pha256 hash function from src.hash
-        return HashFunction(transactions_string)
+        transaction_ids = [
+            str(tx.get("transaction_id", "")) for tx in self.transactions
+        ]
+        combined = "|".join(transaction_ids)
+        return HashFunction(combined)
     
     def get_header(self) -> Dict[str, Any]:
         """

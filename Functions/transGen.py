@@ -17,7 +17,7 @@ def transactionGeneration():
         amount = max(1, int(float(sender.get("balance", 0)) * pct))
 
         transactions.append({
-            "transaction_id": f"{HashFunction(str(sender['name'])+str(receiver['name'])+str(amount))}",
+            "transaction_id": HashFunction(f"{sender['public_key']}|{receiver['public_key']}|{amount}"),
             "sender": sender["public_key"],
             "receiver": receiver["public_key"],
             "amount": amount,
