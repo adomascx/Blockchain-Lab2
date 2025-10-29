@@ -1,39 +1,39 @@
 # Blockchain Lab v0.1
 
-This thing is a centralized, proof-of-work playground that chews through 10k fake account-model transactions and spits out mined blocks with a three-zero difficulty target using the custom PHA256 hash from task 1. It is unapologetically practical: everything is OOP, the chain is persisted, and the console keeps you in the loop while mining grinds away.
+Blockchain Lab v0.1 is a centralized proof-of-work environment designed for experimenting with account-model transactions and block assembly. The project processes 10,000 generated transfers against 1,000 synthetic accounts, applies a custom PHA256 hash function, and persists the resulting chain state for review. The implementation favors clarity and traceability for instructional use while remaining faithful to core blockchain concepts.
 
-## Design Notes
+## System Overview
 
-- **Accounts**: 1,000 deterministic users (`Functions/userGen.py`) with reproducible public keys hashed from their index and balances in `[100, 1_000_000]`.
-- **Transactions**: 10,000 random transfers (`Functions/transGen.py`), transaction IDs = hash of sender, receiver, amount, and ordinal to squash collisions.
-- **Blocks**: Header packs previous hash, timestamp, version, deterministic Merkle surrogate (joined tx ids), nonce, and difficulty. Body is just the 100 executed tx dicts.
-- **Blockchain Core**: `Functions/blockchain.py` owns user state, pending pool, PoW, validation, and persistence. Shadow balances during assembly guarantee intra-block consistency.
-- **Hashing**: Everything critical routes through `Functions/hash.py`; PoW literally hammers that implementation until the hash starts with `000`.
+- **Accounts**: `Functions/userGen.py` produces 1,000 deterministic user records with reproducible public keys derived from their index and balances sampled from the interval `[100, 1_000_000]`.
+- **Transactions**: `Functions/transGen.py` generates 10,000 random transfers. Each transaction identifier hashes the sender, receiver, amount, and ordinal value to reduce the risk of collisions.
+- **Blocks**: The header stores the previous hash, timestamp, version, nonce, difficulty target, and a deterministic transaction root. The body records 100 validated transactions per block.
+- **Blockchain Core**: `Functions/blockchain.py` manages account state, transaction validation, proof-of-work, and persistence. Shadow balances protect intra-block consistency.
+- **Hashing**: `Functions/hash.py` centralizes hashing. Proof-of-work iterates until the computed hash satisfies a three-leading-zero target.
 
-## Running It
+## Running the Application
 
-1. `python main.py` inside the repo (or smash the VS Code run button if you must).
-2. Option `1` writes `json/users_start.json` with 1,000 accounts.
-3. Option `2` spits out `json/transactions.json` with 10,000 transactions.
-4. Option `3` mines until the pool is empty or every remaining tx is garbage--blocks land in `json/blockchain.json`, balances roll into `json/users_end.json`.
+1. Execute `python main.py` from the repository root.
+2. Select option `1` to generate `json/users_start.json` with 1,000 accounts.
+3. Select option `2` to generate `json/transactions.json` with 10,000 transactions.
+4. Select option `3` to mine blocks until the pending pool is exhausted or no valid transactions remain. Results are written to `json/blockchain.json`, and final balances are saved to `json/users_end.json`.
 
-If you somehow manage to skip steps 1 or 2, the miner will yell at you and bail fast.
+The mining workflow performs input validation. If user or transaction data is missing, the application reports the issue and stops the run.
 
 ## Console Snapshot
 
 ![Console mining output](docs/console-output.png)
 
-## File Map
+## Repository Map
 
-- `main.py`: brutalist CLI, nothing fancy, just orchestrates generation and mining.
-- `Functions/block.py`: block structure with deterministic transaction-root hashing.
-- `Functions/blockchain.py`: the real engine; transaction validation, PoW, commits, and persistence live here.
-- `Functions/userGen.py` / `Functions/transGen.py`: data generation utilities tuned for this lab.
-- `json/*.json`: user snapshots, transaction pool, mined chain dump.
-- `docs/console-output.png`: minimal proof that the thing runs; swap it out with a real screenshot if you care about aesthetics.
+- `main.py`: Command-line interface for dataset generation and mining operations.
+- `Functions/block.py`: Block data structure with deterministic transaction root hashing.
+- `Functions/blockchain.py`: Core engine implementing validation, proof-of-work, state updates, and persistence.
+- `Functions/userGen.py` and `Functions/transGen.py`: Data generation utilities for accounts and transactions.
+- `json/*.json`: Input and output datasets, including snapshots of user balances and block history.
+- `docs/console-output.png`: Example mining output.
 
-## Reality Check
+## Additional Notes
 
-- Difficulty `3` keeps the demo tolerable while still testing the PoW loop.
-- Invalid transactions (bad hash, missing user, or broke sender) get roasted and removed; they are listed in the chain dump for forensic kicks.
-- Nothing here is decentralized or secure--by design. It is a controlled sandbox to prove you understand the moving parts.
+- Difficulty level `3` balances demonstration speed with a meaningful proof-of-work exercise.
+- Invalid transactions (for example, incorrect hashes, missing participants, or insufficient balances) are rejected and recorded in the chain dump for later inspection.
+- The project intentionally omits decentralization and security features. It serves as a structured sandbox for understanding the mechanics of block validation.

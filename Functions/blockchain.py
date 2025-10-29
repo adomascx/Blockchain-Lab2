@@ -97,7 +97,7 @@ class Blockchain:
                 difficulty_target=self.difficulty,
             )
 
-            print(f"\nAssembling block #{block_index} with {len(block_transactions)} transactions...")
+            print(f"\nPreparing block #{block_index} with {len(block_transactions)} transactions...")
             mined_hash = self._proof_of_work(block)
             print(f"Block #{block_index} mined with hash {mined_hash[:16]}... after nonce {block.nonce}")
 
@@ -106,7 +106,7 @@ class Blockchain:
             block_index += 1
 
         if self.pending_transactions:
-            print("Pending transactions remain that failed validation. Mining halted.")
+            print("Mining stopped. Pending transactions remain that require validation.")
 
     def _select_transactions_for_block(self) -> List[Transaction]:
         if not self.pending_transactions:
@@ -129,7 +129,7 @@ class Blockchain:
                 shadow_balances[tx.receiver] += tx.amount
             else:
                 self.rejected.append((tx, reason))
-                print(f"Rejecting transaction {tx.transaction_id[:12]}...: {reason}")
+                print(f"Rejected transaction {tx.transaction_id[:12]}... Reason: {reason}")
 
         self.pending_transactions = remaining
         return selection
@@ -164,7 +164,7 @@ class Blockchain:
             block.nonce += 1
             attempt += 1
             if attempt % 5000 == 0:
-                print(f"Still mining... nonce {block.nonce}")
+                print(f"Proof-of-work in progress; current nonce {block.nonce}")
 
     def _commit_block(self, block: Block, transactions: List[Transaction]) -> None:
         for tx in transactions:
@@ -172,7 +172,7 @@ class Blockchain:
             receiver = self.users[tx.receiver]
             sender.balance -= tx.amount
             receiver.balance += tx.amount
-        print(f"Committed block with {len(transactions)} executed transfers.")
+        print(f"Committed block with {len(transactions)} confirmed transactions.")
 
     def to_dict(self) -> Dict[str, object]:
         return {
