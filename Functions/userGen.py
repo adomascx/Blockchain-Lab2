@@ -11,6 +11,3 @@ def userGeneration():
             "balance": random.randint(100, 1000000),
         })
     return users
-
-with open("json/users_start.json", "w", encoding="utf-8") as f:
-    json.dump({"users": userGeneration()}, f, indent=2)
