@@ -1,5 +1,3 @@
-import subprocess
-from pathlib import Path
+from Functions.userGen import userGeneration
 
-subprocess.run([str(Path(__file__).parent / "Hash" / "hash.exe")])
-
+userGeneration()
