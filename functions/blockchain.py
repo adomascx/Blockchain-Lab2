@@ -116,25 +116,58 @@ class Blockchain:
 
     def mine_pending_transactions(self) -> None:
         block_index = 1
+        max_attempts = 1000
+        
         while self.pending_transactions:
-            block_transactions = self._select_transactions_for_block()
-            if not block_transactions:
-                break
-
+            print(f"\n=== Mining Round for Block #{block_index} ===")
             prev_hash = self.chain[-1].calculate_hash() if self.chain else "0" * 64
-            block = Block(
-                transactions=[tx.to_dict() for tx in block_transactions],
-                prev_block_hash=prev_hash,
-                version="1.0.0",
-                difficulty_target=self.difficulty,
-            )
-
-            print(f"\nPreparing block #{block_index} with {len(block_transactions)} transactions...")
-            mined_hash = self._proof_of_work(block)
-            print(f"Block #{block_index} mined with hash {mined_hash[:16]}... after nonce {block.nonce}")
-
-            self._commit_block(block, block_transactions)
-            self.chain.append(block)
+            
+            candidates = []
+            for i in range(5):
+                block_txs = self._select_transactions_for_block()
+                if not block_txs:
+                    break
+                
+                candidate = Block(
+                    transactions=[tx.to_dict() for tx in block_txs],
+                    prev_block_hash=prev_hash,
+                    version="1.0.0",
+                    difficulty_target=self.difficulty,
+                    nonce=random.randint(0, 1000000)
+                )
+                candidates.append((candidate, block_txs))
+                self.pending_transactions.extend(block_txs)
+            
+            if not candidates:
+                break
+            
+            print(f"Generated {len(candidates)} candidate blocks")
+            
+            mined_block = None
+            mined_txs = None
+            attempts = max_attempts
+            
+            while mined_block is None:
+                print(f"Trying to mine with max {attempts} attempts per candidate...")
+                
+                for idx, (candidate, txs) in enumerate(candidates):
+                    result_hash, success = self._proof_of_work_limited(candidate, attempts)
+                    if success:
+                        print(f"Candidate #{idx+1} mined successfully with hash {result_hash[:16]}... at nonce {candidate.nonce}")
+                        mined_block = candidate
+                        mined_txs = txs
+                        break
+                
+                if mined_block is None:
+                    attempts += 500
+                    print(f"No candidate mined. Increasing attempts to {attempts}")
+            
+            for tx in mined_txs:
+                if tx in self.pending_transactions:
+                    self.pending_transactions.remove(tx)
+            
+            self._commit_block(mined_block, mined_txs)
+            self.chain.append(mined_block)
             block_index += 1
 
         if self.pending_transactions:
@@ -203,6 +236,15 @@ class Blockchain:
             attempt += 1
             if attempt % 5000 == 0:
                 print(f"Proof-of-work in progress; current nonce {block.nonce}")
+
+    def _proof_of_work_limited(self, block: Block, max_attempts: int) -> tuple[str | None, bool]:
+        prefix = "0" * self.difficulty
+        for _ in range(max_attempts):
+            computed_hash = block.calculate_hash()
+            if computed_hash.startswith(prefix):
+                return computed_hash, True
+            block.nonce += 1
+        return None, False
 
     def _commit_block(self, block: Block, transactions: List[Transaction]) -> None:
         for tx in transactions:
