@@ -13,6 +13,7 @@ CHAIN_DUMP = "json/blockchain.json"
 
 
 def write_json(path, key, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump({key: data}, f, indent=2)
 
@@ -29,10 +30,10 @@ def run_blockchain() -> None:
     users = read_json(USERS_START, "users")
     transactions = read_json(TRANSACTIONS, "transactions")
     if not users:
-        print("No user records found. Please generate users before starting the miner.")
+        print("\nNo user records found. Please generate users before starting the miner.\n")
         return
     if not transactions:
-        print("No transactions found. Please generate transactions before mining.")
+        print("\nNo transactions found. Please generate transactions before mining.\n")
         return
 
     print(f"Loaded {len(users)} users and {len(transactions)} pending transactions.")
@@ -61,9 +62,12 @@ while True:
         write_json(USERS_START, "users", users)
         print("\nUser dataset generated.\n")
     elif selected == b"2":
-        transactions = transactionGeneration()
-        write_json(TRANSACTIONS, "transactions", transactions)
-        print("\nTransaction dataset generated.\n")
+        if not os.path.exists(USERS_START):
+            print("\nPlease generate users before generating transactions.\n")
+        else:
+            transactions = transactionGeneration()
+            write_json(TRANSACTIONS, "transactions", transactions)
+            print("\nTransaction dataset generated.\n")
     elif selected == b"3":
         run_blockchain()
     elif selected == b"4":

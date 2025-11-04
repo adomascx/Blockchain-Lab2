@@ -22,9 +22,10 @@ def transactionGeneration():
                 receiver = random.choice(users)
 
         recv_pk = receiver.get("public_key")
-        amt = max(1, int(inp["amount"] * random.uniform(0.01, 0.15)))
+        amt = int(inp["amount"] * random.uniform(0.01, 0.15))
+        amt = max(1, min(amt, inp["amount"]))
         if amt > inp["amount"]:
-            amt = inp["amount"]
+            continue
         UTXO = [u for u in UTXO if u["UTXO_id"] != inp["UTXO_id"]]
         out_recv = {"UTXO_id": HashFunction(f"{recv_pk}{amt}{random.random()}"), "owner": recv_pk, "amount": amt}
         UTXO.append(out_recv)
