@@ -61,6 +61,8 @@ class Transaction:
         return instance
 
     def to_dict(self) -> Dict[str, object]:
+        if hasattr(self, 'raw_payload') and self.raw_payload:
+            return self.raw_payload
         return {
             "transaction_id": self.transaction_id,
             "sender": self.sender,
@@ -102,7 +104,7 @@ class Blockchain:
                 continue
             outs = tx.get("outputs") or []
             for out in outs:
-                u_id = out.get("UTXO_id")
+                u_id = out.get("ID")
                 owner = out.get("owner")
                 if u_id and owner:
                     utxo_map[str(u_id)] = str(owner)

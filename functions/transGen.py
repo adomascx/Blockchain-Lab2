@@ -10,7 +10,7 @@ def transactionGeneration():
     for u in users:
         bal = int(float(u.get("balance", 0)))
         if bal > 0:
-            UTXO.append({"UTXO_id": HashFunction(f"{u['public_key']}{bal}{random.random()}"), "owner": u["public_key"], "amount": bal})
+            UTXO.append({"ID": HashFunction(f"{u['public_key']}{bal}{random.random()}"), "owner": u["public_key"], "amount": bal})
     transactions = []
     for i in range(10000):
         if not UTXO:
@@ -26,16 +26,16 @@ def transactionGeneration():
         amt = max(1, min(amt, inp["amount"]))
         if amt > inp["amount"]:
             continue
-        UTXO = [u for u in UTXO if u["UTXO_id"] != inp["UTXO_id"]]
-        out_recv = {"UTXO_id": HashFunction(f"{recv_pk}{amt}{random.random()}"), "owner": recv_pk, "amount": amt}
+        UTXO = [u for u in UTXO if u["ID"] != inp["ID"]]
+        out_recv = {"ID": HashFunction(f"{recv_pk}{amt}{random.random()}"), "owner": recv_pk, "amount": amt}
         UTXO.append(out_recv)
         outputs = [out_recv]
         change = inp["amount"] - amt
+        out_change = {"ID": HashFunction(f"{inp['owner']}{change}{random.random()}"), "owner": inp["owner"], "amount": change}
+        outputs.append(out_change)
         if change > 0:
-            out_change = {"UTXO_id": HashFunction(f"{inp['owner']}{change}{random.random()}"), "owner": inp["owner"], "amount": change}
-            outputs.append(out_change)
             UTXO.append(out_change)
-        tx_id = HashFunction(inp["UTXO_id"] + out_recv["UTXO_id"] + (outputs[1]["UTXO_id"] if len(outputs) > 1 else ""))
-        transactions.append({"transaction_id": tx_id, "inputs": [inp["UTXO_id"]], "outputs": outputs})
-        
+        tx_id = HashFunction(inp["ID"] + out_recv["ID"] + outputs[1]["ID"])
+        transactions.append({"transaction_id": tx_id, "inputs": [inp["ID"]], "outputs": outputs})
+
     return transactions
