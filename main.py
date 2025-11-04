@@ -1,3 +1,5 @@
+#run with "py -3.12 main.py", other versions print a shit ton of errors (still works tho, just annoying)"
+
 import json
 import msvcrt
 import os
@@ -53,22 +55,23 @@ def menu_choice() -> bytes:
     return choice
 
 
-while True:
-    print("1. Generate Users\n2. Generate Transactions\n3. Mine Blockchain\n4. Exit")
-    selected = menu_choice()
+if __name__ == "__main__":
+    while True:
+        print("1. Generate Users\n2. Generate Transactions\n3. Mine Blockchain\n4. Exit")
+        selected = menu_choice()
 
-    if selected == b"1":
-        users = userGeneration()
-        write_json(USERS_START, "users", users)
-        print("\nUser dataset generated.\n")
-    elif selected == b"2":
-        if not os.path.exists(USERS_START):
-            print("\nPlease generate users before generating transactions.\n")
-        else:
-            transactions = transactionGeneration()
-            write_json(TRANSACTIONS, "transactions", transactions)
-            print("\nTransaction dataset generated.\n")
-    elif selected == b"3":
-        run_blockchain()
-    elif selected == b"4":
-        exit()
+        if selected == b"1":
+            users = userGeneration()
+            write_json(USERS_START, "users", users)
+            print("\nUser dataset generated.\n")
+        elif selected == b"2":
+            if not os.path.exists(USERS_START):
+                print("\nPlease generate users before generating transactions.\n")
+            else:
+                transactions = transactionGeneration()
+                write_json(TRANSACTIONS, "transactions", transactions)
+                print("\nTransaction dataset generated.\n")
+        elif selected == b"3":
+            run_blockchain()
+        elif selected == b"4":
+            exit()

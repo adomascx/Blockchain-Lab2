@@ -4,9 +4,24 @@ import json
 import random
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
+from multiprocessing import Pool, cpu_count
 
 from functions.block import Block
 from functions.hash import HashFunction
+
+
+def _mine_candidate_worker(args):
+    """Worker function for parallel mining of a single candidate block."""
+    candidate, max_attempts, difficulty, candidate_idx = args
+    prefix = "0" * difficulty
+    
+    for _ in range(max_attempts):
+        computed_hash = candidate.calculate_hash()
+        if computed_hash.startswith(prefix):
+            return (candidate_idx, candidate, computed_hash, True)
+        candidate.nonce += 1
+    
+    return (candidate_idx, None, None, False)
 
 
 @dataclass
@@ -136,7 +151,6 @@ class Blockchain:
                     nonce=random.randint(0, 1000000)
                 )
                 candidates.append((candidate, block_txs))
-                self.pending_transactions.extend(block_txs)
             
             if not candidates:
                 break
@@ -146,25 +160,36 @@ class Blockchain:
             mined_block = None
             mined_txs = None
             attempts = max_attempts
+            num_workers = min(len(candidates), cpu_count())
             
             while mined_block is None:
-                print(f"Trying to mine with max {attempts} attempts per candidate...")
+                print(f"Mining {len(candidates)} candidates in parallel with {num_workers} workers ({attempts} attempts each)...")
                 
-                for idx, (candidate, txs) in enumerate(candidates):
-                    result_hash, success = self._proof_of_work_limited(candidate, attempts)
+                worker_args = [
+                    (candidate, attempts, self.difficulty, idx)
+                    for idx, (candidate, txs) in enumerate(candidates)
+                ]
+                
+                with Pool(processes=num_workers) as pool:
+                    results = pool.map(_mine_candidate_worker, worker_args)
+                
+                winning_idx = None
+                for candidate_idx, candidate, result_hash, success in results:
                     if success:
-                        print(f"Candidate #{idx+1} mined successfully with hash {result_hash[:16]}... at nonce {candidate.nonce}")
+                        print(f"Candidate #{candidate_idx+1} mined successfully with hash {result_hash[:16]}... at nonce {candidate.nonce}")
                         mined_block = candidate
-                        mined_txs = txs
+                        mined_txs = candidates[candidate_idx][1]
+                        winning_idx = candidate_idx
                         break
                 
                 if mined_block is None:
                     attempts += 500
                     print(f"No candidate mined. Increasing attempts to {attempts}")
             
-            for tx in mined_txs:
-                if tx in self.pending_transactions:
-                    self.pending_transactions.remove(tx)
+            # Return transactions from losing candidates back to pending pool
+            for idx, (candidate, txs) in enumerate(candidates):
+                if idx != winning_idx:
+                    self.pending_transactions.extend(txs)
             
             self._commit_block(mined_block, mined_txs)
             self.chain.append(mined_block)
