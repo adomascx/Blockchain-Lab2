@@ -34,16 +34,25 @@ class Block:
         # Body
         self.transactions = transactions
         
-        # Calculate the Merkle-style root by hashing all transaction identifiers
+        # Calculate the Merkle root using Merkle Tree algorithm
         self.merkle_root = self._calculate_merkle_root()
     
     def _calculate_merkle_root(self) -> str:
-        """Calculate the hash of all transactions using the project HashFunction."""
-        transaction_ids = [
-            str(tx.get("transaction_id", "")) for tx in self.transactions
-        ]
-        combined = "|".join(transaction_ids)
-        return HashFunction(combined)
+        """Calculate Merkle Root using binary tree algorithm."""
+        if not self.transactions:
+            return HashFunction("")
+        
+        current_level = [str(tx.get("transaction_id", "")) for tx in self.transactions]
+        
+        while len(current_level) > 1:
+            next_level = []
+            for i in range(0, len(current_level), 2):
+                left = current_level[i]
+                right = current_level[i + 1] if i + 1 < len(current_level) else left
+                next_level.append(HashFunction(left + right))
+            current_level = next_level
+        
+        return current_level[0]
     
     def get_header(self) -> Dict[str, Any]:
         """Return the block header as a dictionary."""

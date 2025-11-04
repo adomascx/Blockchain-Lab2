@@ -36,7 +36,7 @@ def run_blockchain() -> None:
         print("\nNo transactions found. Please generate transactions before mining.\n")
         return
 
-    print(f"Loaded {len(users)} users and {len(transactions)} pending transactions.")
+    print(f"\nLoaded {len(users)} users and {len(transactions)} pending transactions.")
     chain = Blockchain(users=users, transactions=transactions, difficulty=3, block_size=100)
     chain.mine_pending_transactions()
     chain.save_state(CHAIN_DUMP, USERS_END)
