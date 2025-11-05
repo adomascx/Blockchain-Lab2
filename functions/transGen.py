@@ -2,10 +2,10 @@ import json
 import random
 from functions.hash import HashFunction
 
-TRANSACTIONS_COUNT = 1000
+TRANSACTIONS_COUNT = 10000
 
 def transactionGeneration():
-    def _new_utxo(owner: str, amount: int) -> dict:
+    def _new_utxo(owner: str, amount: int):
         return {
             "ID": HashFunction(f"{owner}{amount}{random.random()}"),
             "owner": owner,

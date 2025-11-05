@@ -1,3 +1,6 @@
+# VS Code environment
+.vscode/
+
 # Python environment
 .venv
 */__pycache__
@@ -8,3 +11,6 @@ json/
 # Misc MD files
 *.md
 !README.md
+
+# Test files
+tests/
