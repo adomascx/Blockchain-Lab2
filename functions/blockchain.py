@@ -31,7 +31,7 @@ class Transaction:
     transaction_id: str = ""
 
     def __post_init__(self):
-        # Generate transaction ID
+        # Generate transaction ID if not present in the JSON
         if not self.transaction_id:
             self.transaction_id = self._generate_id()
 
@@ -96,7 +96,7 @@ class blockchain:
             if not candidates:
                 break
 
-            # Attempt to mine the 5 candidate blocks with multiple workers
+            # Mine a block (from candidates)
             mined_block, mined_transactions = self._mine_candidates(candidates, max_attempts)
             if mined_block is None:
                 break
@@ -109,13 +109,14 @@ class blockchain:
         """Build candidate blocks for mining."""
         candidates = []
         
-        # Select 5 random transactions
+        # Select 5 candidate blocks
         for _ in range(5):
+            # Select 100 transactions
             block_transactions = self._select_transactions_for_candidate()
             if not block_transactions:
                 break
 
-            # Create candidate block with selected transactions
+            # Add header
             candidate = block(
                 transactions=[tx.to_dict() for tx in block_transactions],
                 prev_block_hash=prev_hash,
@@ -123,6 +124,7 @@ class blockchain:
                 difficulty_target=self.difficulty,
                 nonce=random.randint(0, 1_000_000),
             )
+            # Create candidate block
             candidates.append((candidate, block_transactions))
 
         return candidates
@@ -188,13 +190,17 @@ class blockchain:
         return mined_block, mined_transactions
 
     def _finalize_mined_block(self, block, transactions, chain_path):
+        """Finalize the mined block and update blockchain state."""
         mined_transaction_ids = {tx.transaction_id for tx in transactions}
+
+        # Remove mined transactions from `pending_transactions`
         self.pending_transactions = [
             tx
             for tx in self.pending_transactions
             if tx.transaction_id not in mined_transaction_ids
         ]
 
+        # Update UTXO and append block to chain
         self._commit_block(block, transactions)
         self.chain.append(block)
         if chain_path:
