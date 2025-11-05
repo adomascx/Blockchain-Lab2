@@ -4,7 +4,7 @@ from functions.hash import HashFunction
 
 
 class Block:
-    def __init__(self, transactions, prev_block_hash="0" * 64, version="0.2", difficulty_target=4, nonce=0):
+    def __init__(self, transactions, prev_block_hash="0" * 64, version="0.2", difficulty_target=3, nonce=0):
         self.prev_block_hash = prev_block_hash
         self.timestamp = datetime.now().isoformat()
         self.version = version

@@ -2,7 +2,7 @@ import json
 import random
 from functions.hash import HashFunction
 
-MAX_TRANSACTIONS = 10000
+TRANSACTIONS_COUNT = 1000
 
 def transactionGeneration():
     def _new_utxo(owner: str, amount: int) -> dict:
@@ -22,7 +22,7 @@ def transactionGeneration():
             utxo_pool.append(_new_utxo(user["public_key"], balance))
 
     transactions = []
-    for _ in range(MAX_TRANSACTIONS):
+    for _ in range(TRANSACTIONS_COUNT):
         if not utxo_pool:
             break
 

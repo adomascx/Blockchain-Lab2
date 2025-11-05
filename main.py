@@ -9,7 +9,6 @@ from functions.transGen import transactionGeneration
 from functions.userGen import userGeneration
 
 USERS_START = "json/users_start.json"
-USERS_END = "json/users_end.json"
 TRANSACTIONS = "json/transactions.json"
 CHAIN_DUMP = "json/blockchain.json"
 
@@ -29,13 +28,13 @@ def load_json(path, key):
 
 
 def mine_blockchain():
-    # Load users and check if exist
+    # Load users JSON
     users = load_json(USERS_START, "users")
     if not users:
         print("\nNo users found. Generate users before mining.\n")
         return
 
-    # Load transactions and check if exist
+    # Load transactions JSON
     transactions = load_json(TRANSACTIONS, "transactions")
     if not transactions:
         print("\nNo transactions found. Generate transactions before mining.\n")
@@ -45,10 +44,11 @@ def mine_blockchain():
     
     # Init blockchain and start mining
     chain = Blockchain(users=users, transactions=transactions, difficulty=3, block_size=100)
-    chain.mine_pending_transactions(chain_path=CHAIN_DUMP, users_path=USERS_END)
-    if chain.rejected:
-        print(f"{len(chain.rejected)} transactions were rejected during validation.")
-    print(f"Blockchain now contains {len(chain.chain)} blocks. Saved to {CHAIN_DUMP}.")
+    chain.mine_pending_transactions(chain_path=CHAIN_DUMP)
+    
+    print(f"\nBlockchain now contains {len(chain.chain)} blocks. Saved to {CHAIN_DUMP}.")
+    if chain.rejected_count:
+        print(f"{chain.rejected_count} transactions were rejected during validation.")
 
 
 def menu_choice():
@@ -64,21 +64,23 @@ def main():
         print("1. Generate Users\n2. Generate Transactions\n3. Mine Blockchain\n4. Exit")
         choice = menu_choice()
 
-        if choice == "1":
-            users = userGeneration()
-            save_json(USERS_START, "users", users)
-            print("\nUsers generated.\n")
-        elif choice == "2":
-            if not os.path.exists(USERS_START):
-                print("\nPlease generate users before generating transactions.\n")
-            else:
-                transactions = transactionGeneration()
-                save_json(TRANSACTIONS, "transactions", transactions)
-                print("\nTransactions generated.\n")
-        elif choice == "3":
-            mine_blockchain()
-        elif choice == "4":
-            break
+        match choice:
+            case "1":
+                users = userGeneration()
+                save_json(USERS_START, "users", users)
+                print("\nUsers generated.\n")
+            case "2":
+                if not os.path.exists(USERS_START):
+                    print("\nPlease generate users before generating transactions.\n")
+                else:
+                    transactions = transactionGeneration()
+                    save_json(TRANSACTIONS, "transactions", transactions)
+                    print("\nTransactions generated.\n")
+            case "3":
+                mine_blockchain()
+                break
+            case "4":
+                break
 
 
 if __name__ == "__main__":
