@@ -90,34 +90,40 @@ class blockchain:
             print(f"Pending transactions: {len(self.pending_transactions)}")
 
             prev_hash = self.chain[-1].calculate_hash() if self.chain else "0" * 64
-            
+
+            # Build 5 candidate blocks
             candidates = self._build_candidates(prev_hash)
             if not candidates:
                 break
 
-            mined_block, mined_txs = self._mine_candidates(candidates, max_attempts)
+            # Attempt to mine the 5 candidate blocks with multiple workers
+            mined_block, mined_transactions = self._mine_candidates(candidates, max_attempts)
             if mined_block is None:
                 break
 
-            self._finalize_mined_block(mined_block, mined_txs, chain_path)
+            # Add the mined block to the blockchain
+            self._finalize_mined_block(mined_block, mined_transactions, chain_path)
             block_index += 1
 
     def _build_candidates(self, prev_hash):
         """Build candidate blocks for mining."""
         candidates = []
+        
+        # Select 5 random transactions
         for _ in range(5):
-            block_txs = self._select_transactions_for_candidate()
-            if not block_txs:
+            block_transactions = self._select_transactions_for_candidate()
+            if not block_transactions:
                 break
 
+            # Create candidate block with selected transactions
             candidate = block(
-                transactions=[tx.to_dict() for tx in block_txs],
+                transactions=[tx.to_dict() for tx in block_transactions],
                 prev_block_hash=prev_hash,
                 version="0.2",
                 difficulty_target=self.difficulty,
                 nonce=random.randint(0, 1_000_000),
             )
-            candidates.append((candidate, block_txs))
+            candidates.append((candidate, block_transactions))
 
         return candidates
     
@@ -126,55 +132,67 @@ class blockchain:
         if not self.pending_transactions:
             return []
 
-        selection = []
+        transaction_selection = []
         used_inputs = set()
 
         for tx in self.pending_transactions:
-            if len(selection) >= self.block_size:
+            # Is there space for more transactions
+            if len(transaction_selection) >= self.block_size:
                 break
-
+            
+            # Does the transaction have outputs
             if not tx.outputs:
                 continue
+            
+            # Are all inputs used
             if any(inp in used_inputs for inp in tx.inputs):
                 continue
-            selection.append(tx)
+            
+            # If so, add transaction to selection
+            transaction_selection.append(tx)
             used_inputs.update(tx.inputs)
 
-        return selection
+        return transaction_selection
 
     def _mine_candidates(self, candidates, max_attempts):
+        """Attempt to mine candidate blocks in parallel (with bounded attempts)."""
         mined_block = None
-        mined_txs = []
+        mined_transactions = []
         attempts = max_attempts
         num_workers = min(len(candidates), cpu_count())
 
         while mined_block is None:
+            
+            # Prepare args for mining workers
             worker_args = [
                 (candidate, attempts, self.difficulty, idx)
                 for idx, (candidate, _) in enumerate(candidates)
             ]
 
+            # Mine candidates using worker pool
             with Pool(processes=num_workers) as pool:
                 results = pool.map(_mine_candidate_worker, worker_args)
 
+            # Check workers for success
             for candidate_index, candidate, _result_hash, success in results:
                 if success:
                     mined_block = candidate
-                    mined_txs = candidates[candidate_index][1]
+                    mined_transactions = candidates[candidate_index][1]
                     print(f"Candidate #{candidate_index + 1} found valid hash! (max_attempts: {attempts})") # type: ignore
                     break
 
+            # If none were successful, increase max attempts and try again
             if mined_block is None:
                 attempts += 500
 
-        return mined_block, mined_txs
+        return mined_block, mined_transactions
 
     def _finalize_mined_block(self, block, transactions, chain_path):
-        mined_tx_ids = {tx.transaction_id for tx in transactions}
+        mined_transaction_ids = {tx.transaction_id for tx in transactions}
         self.pending_transactions = [
             tx
             for tx in self.pending_transactions
-            if tx.transaction_id not in mined_tx_ids
+            if tx.transaction_id not in mined_transaction_ids
         ]
 
         self._commit_block(block, transactions)
@@ -186,14 +204,17 @@ class blockchain:
         """Update user balances and reject invalid transactions after mining a block."""
         valid_count = 0
         for tx in transactions:
+            # Are all inputs unspent
             if not tx.outputs:
                 self.rejected_count += 1
                 continue
 
             valid_count += 1
+            
             # Update UTXO index by removing spent inputs
             for utxo_id in tx.inputs:
                 self.utxo_index.pop(utxo_id, None)
+                
             # Add new outputs to the index
             for output in tx.outputs:
                 out_id = output.get("ID")
