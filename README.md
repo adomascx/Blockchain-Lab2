@@ -1,16 +1,17 @@
-# Blockchain Lab v0.1
+# Blockchain Lab v0.2
 
 ## Greita apžvalga
 
-* **Hashas**: mūsų PHA256 (iš 1 LD). Naudojamas ir transakcijų/šaknies skaičiavimui, ir PoW.
-* **PoW tikslas**: bloko antraštės hash turi prasidėti **mažiausiai trimis nuliais**.
-* **Duomenys**: 1 000 vartotojų su balansais `[100, 1_000_000]`, 10 000 transakcijų.
-* **Bloko dydis**: ~100 patikrintų transakcijų viename bloke.
-* **Saugojimas**: rezultatai JSON formatu `json/` kataloge.
+- **Hashas**: mūsų PHA256 (iš 1 LD). Naudojamas transakcijų, Merkle šaknims ir bloko PoW hash skaičiavimui.
+- **PoW tikslas**: bloko antraštės hash turi prasidėti **mažiausiai trimis nuliais**.
+- **Kasimas**: vienu metu ruošiami 5 kandidatiniai blokai ir jų `nonce` ieškoma lygiagrečiai (multiprocessing).
+- **Duomenys**: 1 000 vartotojų su balansais `[100, 1_000_000]`, iki 10 000 transakcijų.
+- **Bloko dydis**: iki 100 transakcijų viename bloke (priklauso nuo galimų UTXO).
+- **Saugojimas**: rezultatai JSON formatu `json/` kataloge.
 
 ## Turinys
 
-- [Blockchain Lab v0.1](#blockchain-lab-v01)
+- [Blockchain Lab v0.2](#blockchain-lab-v02)
   - [Greita apžvalga](#greita-apžvalga)
   - [Turinys](#turinys)
   - [Kaip paleisti](#kaip-paleisti)
@@ -19,38 +20,37 @@
   - [Kaip veikia viduje](#kaip-veikia-viduje)
     - [Blokas](#blokas)
     - [Transakcijos (UTXO)](#transakcijos-utxo)
-    - [Taisyklės](#taisyklės)
     - [Kasimas](#kasimas)
   - [Failų žemėlapis](#failų-žemėlapis)
   - [JSON išvestis](#json-išvestis)
   - [Nustatymai](#nustatymai)
+  - [DI](#di)
 
 ## Kaip paleisti
 
 1. Paleiskite iš repo šaknies:
 
    ```bash
-   python main.py
+   py -3.12 main.py
    ```
 
 2. Meniu pasirinkimai:
 
-   * `1` – sugeneruoja `json/users_start.json` (1 000 vartotojų).
-   * `2` – sugeneruoja `json/transactions.json` (10 000 transakcijų).
-   * `3` – kasa blokus iki kol baseinas ištuštėja. Išvestis:
+   - `1` – sugeneruoja `json/users_start.json` (1 000 vartotojų).
+   - `2` – sugeneruoja `json/transactions.json` (10 000 transakcijų).
+   - `3` – kasa blokus iki kol baseinas ištuštėja. Išvestis:
 
-     * `json/blockchain.json` – blokų grandinė;
-     * `json/users_end.json` – galutiniai balansai.
+     - `json/blockchain.json` – blokų grandinė;
 
-   * `4` – išeina iš programos.
+   - `4` – išeina iš programos.
 
-Jei kažko trūksta (pvz., nesugeneruoti vartotojai ar transakcijos), programa tai pasakys ir sustos.
+Jei kažko trūksta (pvz., nesugeneruoti vartotojai ar transakcijos), programa tai pasakys ir sustos. `json/` katalogas sukuriamas automatiškai.
 
 ## Ką pamatysite konsolėje
 
-* Transakcijų rinkimo ir validavimo žingsnius (atmestos transakcijos su priežastimi).
-* Kasančio nonco paiešką (kas 5 000 iteracijų – tarpinius pranešimus).
-* Rasto bloko suvestinę: antraštę, transakcijų skaičių, hash, bendrą grandinės ilgį.
+- Blokų ciklą: `=== Mining Block #N ===` su eilės būsena.
+- Kandidatų žinutes, pvz. `Candidate #3 found valid hash! (max_attempts: 1500)`.
+- Bloko santrauką `Block mined with X valid transactions (Y rejected).`
 
 ### Konsolės pavyzdys
 
@@ -60,59 +60,62 @@ Jei kažko trūksta (pvz., nesugeneruoti vartotojai ar transakcijos), programa t
 
 ### Blokas
 
-* **Antraštė**: previous_hash, timestamp, version, nonce, difficulty, tx_root.
-* **Turinys**: 100 validžių transakcijų.
+- **Antraštė**: previous_hash, timestamp, version, nonce, difficulty, Merkle root.
+  - **Merkle medis**: kiekvieno lygio hash dubliuojamas, jei parodymų skaičius nelyginis, todėl gaunama deterministinė šaknis net esant vienai operacijai.
+- **Turinys**: iki 100 transakcijų (tik tos, kurios pereina paprastą UTXO patikrą).
 
 ### Transakcijos (UTXO)
 
-Generatorius kuria UTXO tipo pervedimus ir palaiko laikiną UTXO rinkinį, kad nuorodos būtų į *nesunaudotus* išėjimus. Mineris šiuos duomenis interpretuoja paskyrų lygmeniu, todėl tikrina tik siuntėjo ir gavėjo balansus.
+Generatorius palaiko vieną UTXO rinkinį ir kiekvienam vartotojui kuria atsitiktinius pervedimus su „change“ išėjimu.
 
 **Forma** (`json/transactions.json`):
 
 ```json
 {
   "transaction_id": "...",
-  "inputs": ["<consumed_utxo_id>", "..."],
+  "inputs": ["<spent_utxo_id>", "..."],
   "outputs": [
-    {"UTXO_id": "...", "owner": "<receiver_public_key>", "amount": 2500},
-    {"UTXO_id": "...", "owner": "<change_public_key>", "amount": 7500}
+    {"ID": "...", "owner": "<receiver_public_key>", "amount": 2500},
+    {"ID": "...", "owner": "<change_public_key>", "amount": 7500}
   ]
 }
 ```
 
-### Taisyklės
-
-* Siuntėjas ir gavėjas turi egzistuoti vartotojų sąraše.
-* Suma turi būti teigiama ir neviršyti siuntėjo balanso (naudojama „šešėlinė“ balansų kopija bloko rinkimo metu).
-* `transaction_id` turi sutapti su `Hash(sender|receiver|amount)` (yra išlyga suderinamumui su ankstesniu formatu).
-
 ### Kasimas
 
-1. Iš baseino paimame ~100 valid transakcijų.
-2. Skaičiuojame antraštės hash su skirtingais `nonce` iki kol gauname `000...` pradžią.
-3. Patvirtinus bloką:
-
-    * transakcijas pašaliname iš baseino;
-    * atnaujiname vartotojų balansus;
-    * bloką pridedame prie `json/blockchain.json`.
+1. Iš eilės surenkama iki 100 UTXO tranzakcijų (neleidžiami dubliuoti `inputs`).
+2. Sukuriami 5 kandidatai su tomis pačiomis atrinktomis transakcijomis, bet skirtingais atsitiktiniais pradiniais `nonce` (naudojama lygiagrečiam PoW).
+3. Kandidatai kasami lygiagrečiai (`multiprocessing.Pool`) iki kol vienas iš jų atitinka `difficulty` (pradinis limitas 1 000 iteracijų, po nesėkmės +500).
+4. Laimėjęs (iškastas) kandidatas pridedamas prie grandinės, o išnaudotos UTXO pašalinamos iš laukiančiųjų.
 
 ## Failų žemėlapis
 
-* `main.py` – paprastas meniu trijoms užduotims.
-* `functions/block.py` – bloko struktūra ir šaknies skaičiavimas.
-* `functions/blockchain.py` – validavimas, PoW, būsena, atmestų transakcijų registras, išsaugojimas.
-* `functions/userGen.py`, `functions/transGen.py` – duomenų generatoriai.
-* `functions/hash.py` – centralizuotas PHA256 kvietimas.
-* `json/*.json` – įvestys ir išvestys.
-* `console-output.png` – konsolės pavyzdys.
+- `main.py` – paprastas meniu duomenų generavimui ir kasimui.
+- `functions/block.py` – bloko struktūra ir Merkle šaknies skaičiavimas.
+- `functions/blockchain.py` – kandidatų parinkimas, lygiagretus PoW, UTXO registras ir JSON išsaugojimas.
+- `functions/userGen.py`, `functions/transGen.py` – duomenų generatoriai (`HashFunction` naudojamas raktams/UTXO ID).
+- `functions/hash.py` – PHA256 realizacija.
+- `json/*.json` – įvestys ir išvestys (`users_start`, `transactions`, `blockchain`).
+- `console-output.png` – konsolės pavyzdys.
 
 ## JSON išvestis
 
-* `json/blockchain.json` – metaduomenys (`difficulty`, `block_size`), kiekvieno bloko `header`/`transactions`/`hash`, bei sąrašas `rejected_transactions` su priežastimis.
-* `json/users_end.json` – galutiniai vartotojų balansai (`users` masyvas).
-* `json/transactions.json` – pradinės transakcijos (`transactions` masyvas). Miner’io metu jos perskirstomos į blokus arba atmetamos.
+- `json/users_start.json` – 1 000 vartotojų (`name`, `public_key`, `balance`).
+- `json/transactions.json` – sugeneruotos transakcijos (`transactions` masyve) su UTXO I/O.
+- `json/blockchain.json` – dabartinė grandinė: `difficulty`, `block_size`, blokų `header`/`transactions`/`hash`, `rejected_transactions` skaitiklis.
 
 ## Nustatymai
 
-* **Difficulty**: `3`. Greita demonstracija, bet matomas PoW efektas.
-* **Bloko dydis**: `~100` transakcijų. Keiskite, jei norite pamatyti kitą dinamiką.
+- **Difficulty**: `3`. Greita demonstracija, bet matomas PoW efektas.
+- **Bloko dydis**: iki `100` (keičiasi `blockchain(block_size=...)`).
+- **Kandidatų kiekis**: `5` (konstanta `blockchain._build_candidates`).
+- **Pradiniai bandymai**: `1000` iteracijų kandidatui, po nesėkmės padidėja `+500`.
+- **Naudotojų/Tx kiekiai**: `USERS_COUNT = 1000`, `TRANSACTIONS_COUNT = 10_000`.
+
+## DI
+
+DI buvo naudojamas kaip "konsultantas":
+
+- Kodo stiliui (kad atitiktų šiuolaikinius standartus)
+- Klaidų taisymui ("bug fixes")
+- PHA256 vertimo į Python pagalbai
