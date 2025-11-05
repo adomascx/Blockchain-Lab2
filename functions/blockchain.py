@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import random
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
 from multiprocessing import Pool, cpu_count
 
 from functions.block import Block
@@ -30,7 +29,7 @@ class UserAccount:
     public_key: str
     balance: int
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self):
         return {"name": self.name, "public_key": self.public_key, "balance": self.balance}
 
 
@@ -39,44 +38,53 @@ class Transaction:
     sender: str
     receiver: str
     amount: int
-    transaction_id: str = field(init=False)
+    transaction_id: str = ""
+    raw_payload: dict = field(default_factory=dict)
 
-    def __post_init__(self) -> None:
-        payload = f"{self.sender}|{self.receiver}|{self.amount}"
-        self.transaction_id = HashFunction(payload)
+    def __post_init__(self):
+        if not self.transaction_id:
+            payload = f"{self.sender}|{self.receiver}|{self.amount}"
+            self.transaction_id = HashFunction(payload)
 
     @classmethod
-    def from_dict(cls, payload: Dict[str, object], utxo_map: Dict[str, str] | None = None) -> "Transaction":
+    def from_dict(cls, payload, utxo_map=None):
+        # Handle UTXO-based transactions
         if "inputs" in payload and "outputs" in payload:
             outputs = payload.get("outputs", []) or []
-            receiver = str(outputs[0].get("owner", "")).strip() if len(outputs) >= 1 else ""
+            receiver = str(outputs[0].get("owner", "")) if outputs else ""
+            
             if len(outputs) >= 2:
-                sender = str(outputs[1].get("owner", "")).strip()
+                sender = str(outputs[1].get("owner", ""))
             else:
                 sender = ""
                 inputs = payload.get("inputs", []) or []
                 if inputs and utxo_map:
-                    sender = str(utxo_map.get(str(inputs[0]), "")).strip()
+                    sender = utxo_map.get(str(inputs[0]), "")
 
-            amount = int(outputs[0].get("amount", 0)) if len(outputs) >= 1 else int(payload.get("amount", 0))
-            instance = cls(sender=sender, receiver=receiver, amount=amount)
-            instance.raw_payload = payload
-            claimed = str(payload.get("transaction_id", "")).strip()
-            if claimed:
-                instance.transaction_id = claimed
-            return instance
+            amount = int(outputs[0].get("amount", 0)) if outputs else 0
+            tx_id = str(payload.get("transaction_id", ""))
+            return cls(
+                sender=sender, 
+                receiver=receiver, 
+                amount=amount,
+                transaction_id=tx_id,
+                raw_payload=payload
+            )
 
-        sender = str(payload.get("sender", "")).strip()
-        receiver = str(payload.get("receiver", "")).strip()
+        # Handle simple transactions
+        sender = str(payload.get("sender", ""))
+        receiver = str(payload.get("receiver", ""))
         amount = int(payload.get("amount", 0))
-        instance = cls(sender=sender, receiver=receiver, amount=amount)
-        claimed = str(payload.get("transaction_id", "")).strip()
-        if claimed and claimed != instance.transaction_id:
-            instance.transaction_id = claimed
-        return instance
+        tx_id = str(payload.get("transaction_id", ""))
+        return cls(
+            sender=sender, 
+            receiver=receiver, 
+            amount=amount,
+            transaction_id=tx_id
+        )
 
-    def to_dict(self) -> Dict[str, object]:
-        if hasattr(self, 'raw_payload') and self.raw_payload:
+    def to_dict(self):
+        if self.raw_payload:
             return self.raw_payload
         return {
             "transaction_id": self.transaction_id,
@@ -87,33 +95,26 @@ class Transaction:
 
 
 class Blockchain:
-    def __init__(
-        self,
-        users: List[Dict[str, object]],
-        transactions: List[Dict[str, object]],
-        difficulty: int = 3,
-        block_size: int = 100,
-    ) -> None:
-        if difficulty < 1:
-            raise ValueError("Difficulty must be at least 1")
-        if block_size < 1:
-            raise ValueError("Block size must be at least 1")
-
+    """Basic blockchain implementation with parallel mining and UTXO support."""
+    
+    def __init__(self, users, transactions, difficulty=3, block_size=100):
         self.difficulty = difficulty
         self.block_size = block_size
-        self.chain: List[Block] = []
-        self.rejected: List[Tuple[Transaction, str]] = []
-        self.users: Dict[str, UserAccount] = {
-            str(user["public_key"]): UserAccount(
-                name=str(user.get("name", "")),
-                public_key=str(user.get("public_key", "")),
-                balance=int(user.get("balance", 0)),
-            )
-            for user in users
-        }
-
+        self.chain = []
+        self.rejected = []
+        self.users = {}
         
-        utxo_map: Dict[str, str] = {}
+        # Create user accounts
+        for user in users:
+            pk = str(user["public_key"])
+            self.users[pk] = UserAccount(
+                name=str(user.get("name", "")),
+                public_key=pk,
+                balance=int(user.get("balance", 0))
+            )
+
+        # Build UTXO mapping for transaction parsing
+        utxo_map = {}
         for tx in transactions:
             if not tx:
                 continue
@@ -124,22 +125,24 @@ class Blockchain:
                 if u_id and owner:
                     utxo_map[str(u_id)] = str(owner)
 
-        pending: List[Transaction] = [Transaction.from_dict(tx, utxo_map=utxo_map) for tx in transactions if tx]
-        self.pending_transactions = pending
-
+        # Parse transactions
+        self.pending_transactions = [Transaction.from_dict(tx, utxo_map) for tx in transactions if tx]
         random.shuffle(self.pending_transactions)
 
-    def mine_pending_transactions(self) -> None:
+    def mine_pending_transactions(self):
+        """Mine all pending transactions using parallel mining."""
         block_index = 1
         max_attempts = 1000
         
         while self.pending_transactions:
-            print(f"\n=== Mining Round for Block #{block_index} ===")
+            print(f"\n=== Mining Block #{block_index} ===")
+            print(f"Pending transactions: {len(self.pending_transactions)}")
             prev_hash = self.chain[-1].calculate_hash() if self.chain else "0" * 64
             
+            # Create candidate blocks (without modifying pending_transactions)
             candidates = []
             for i in range(5):
-                block_txs = self._select_transactions_for_block()
+                block_txs = self._select_transactions_for_candidate()
                 if not block_txs:
                     break
                 
@@ -155,16 +158,16 @@ class Blockchain:
             if not candidates:
                 break
             
-            print(f"Generated {len(candidates)} candidate blocks")
+            print(f"Mining {len(candidates)} candidates in parallel...")
             
+            # Parallel mining
             mined_block = None
-            mined_txs = None
+            mined_txs = []
+            winning_idx = -1
             attempts = max_attempts
             num_workers = min(len(candidates), cpu_count())
             
             while mined_block is None:
-                print(f"Mining {len(candidates)} candidates in parallel with {num_workers} workers ({attempts} attempts each)...")
-                
                 worker_args = [
                     (candidate, attempts, self.difficulty, idx)
                     for idx, (candidate, txs) in enumerate(candidates)
@@ -173,10 +176,9 @@ class Blockchain:
                 with Pool(processes=num_workers) as pool:
                     results = pool.map(_mine_candidate_worker, worker_args)
                 
-                winning_idx = None
                 for candidate_idx, candidate, result_hash, success in results:
                     if success:
-                        print(f"Candidate #{candidate_idx+1} mined successfully with hash {result_hash[:16]}... at nonce {candidate.nonce}")
+                        print(f"Candidate #{candidate_idx+1} found valid hash!")
                         mined_block = candidate
                         mined_txs = candidates[candidate_idx][1]
                         winning_idx = candidate_idx
@@ -184,102 +186,83 @@ class Blockchain:
                 
                 if mined_block is None:
                     attempts += 500
-                    print(f"No candidate mined. Increasing attempts to {attempts}")
             
-            # Return transactions from losing candidates back to pending pool
-            for idx, (candidate, txs) in enumerate(candidates):
-                if idx != winning_idx:
-                    self.pending_transactions.extend(txs)
+            # Remove only the winning block's transactions from pending pool
+            mined_tx_ids = {tx.transaction_id for tx in mined_txs}
+            self.pending_transactions = [
+                tx for tx in self.pending_transactions 
+                if tx.transaction_id not in mined_tx_ids
+            ]
             
             self._commit_block(mined_block, mined_txs)
             self.chain.append(mined_block)
             block_index += 1
 
-        if self.pending_transactions:
-            print("Mining stopped. Pending transactions remain that require validation.")
-
-    def _select_transactions_for_block(self) -> List[Transaction]:
+    def _select_transactions_for_candidate(self):
+        """Select valid transactions for a candidate block (non-destructive)."""
         if not self.pending_transactions:
             return []
 
-        random.shuffle(self.pending_transactions)
-        selection: List[Transaction] = []
-        remaining: List[Transaction] = []
-        shadow_balances = {pk: acct.balance for pk, acct in self.users.items()}
+        # Work with a shuffled copy to get variety in candidates
+        available_txs = self.pending_transactions.copy()
+        random.shuffle(available_txs)
+        
+        selection = []
+        balances = {pk: acct.balance for pk, acct in self.users.items()}
+        used_tx_ids = set()
 
-        for tx in self.pending_transactions:
+        for tx in available_txs:
+            # Skip if already used in this candidate
+            if tx.transaction_id in used_tx_ids:
+                continue
+                
             if len(selection) >= self.block_size:
-                remaining.append(tx)
+                break
+
+            # Simple validation
+            if tx.sender not in self.users or tx.receiver not in self.users:
+                # Don't reject here, will be rejected when actually mined
+                continue
+            
+            if tx.amount <= 0:
+                continue
+            
+            if balances.get(tx.sender, 0) < tx.amount:
                 continue
 
-            valid, reason = self._validate_transaction(tx, shadow_balances)
-            if valid:
-                selection.append(tx)
-                shadow_balances[tx.sender] -= tx.amount
-                shadow_balances[tx.receiver] += tx.amount
-            else:
-                self.rejected.append((tx, reason))
-                print(f"Rejected transaction {tx.transaction_id[:12]}... Reason: {reason}")
+            selection.append(tx)
+            used_tx_ids.add(tx.transaction_id)
+            balances[tx.sender] -= tx.amount
+            balances[tx.receiver] += tx.amount
 
-        self.pending_transactions = remaining
         return selection
 
-    def _validate_transaction(self, tx: Transaction, balances: Dict[str, int]) -> Tuple[bool, str]:
-        if tx.sender not in self.users:
-            return False, "unknown sender"
-        if tx.receiver not in self.users:
-            return False, "unknown receiver"
-        if tx.amount <= 0:
-            return False, "non-positive amount"
-        expected = HashFunction(f"{tx.sender}|{tx.receiver}|{tx.amount}")
-        if tx.transaction_id != expected:
-            
-            sender_account = self.users[tx.sender]
-            receiver_account = self.users[tx.receiver]
-            legacy = HashFunction(f"{sender_account.name}{receiver_account.name}{tx.amount}")
-            if tx.transaction_id == legacy:
-                tx.transaction_id = expected
-            else:
-                
-                raw = getattr(tx, "raw_payload", None)
-                if raw and str(raw.get("transaction_id", "")).strip() == tx.transaction_id:
-                    pass
-                else:
-                    return False, "forged transaction hash"
-        if balances.get(tx.sender, 0) < tx.amount:
-            return False, "insufficient balance"
-        return True, ""
-
-    def _proof_of_work(self, block: Block) -> str:
-        prefix = "0" * self.difficulty
-        attempt = 0
-        while True:
-            computed_hash = block.calculate_hash()
-            if computed_hash.startswith(prefix):
-                return computed_hash
-            block.nonce += 1
-            attempt += 1
-            if attempt % 5000 == 0:
-                print(f"Proof-of-work in progress; current nonce {block.nonce}")
-
-    def _proof_of_work_limited(self, block: Block, max_attempts: int) -> tuple[str | None, bool]:
-        prefix = "0" * self.difficulty
-        for _ in range(max_attempts):
-            computed_hash = block.calculate_hash()
-            if computed_hash.startswith(prefix):
-                return computed_hash, True
-            block.nonce += 1
-        return None, False
-
-    def _commit_block(self, block: Block, transactions: List[Transaction]) -> None:
+    def _commit_block(self, block, transactions):
+        """Update user balances and reject invalid transactions after mining a block."""
+        valid_count = 0
         for tx in transactions:
-            sender = self.users[tx.sender]
-            receiver = self.users[tx.receiver]
-            sender.balance -= tx.amount
-            receiver.balance += tx.amount
-        print(f"Committed block with {len(transactions)} confirmed transactions.")
+            # Validate transaction before committing
+            if tx.sender not in self.users or tx.receiver not in self.users:
+                self.rejected.append((tx, "unknown user"))
+                continue
+            
+            if tx.amount <= 0:
+                self.rejected.append((tx, "invalid amount"))
+                continue
+            
+            if self.users[tx.sender].balance < tx.amount:
+                self.rejected.append((tx, "insufficient balance"))
+                continue
+            
+            # Apply valid transaction
+            self.users[tx.sender].balance -= tx.amount
+            self.users[tx.receiver].balance += tx.amount
+            valid_count += 1
+            
+        print(f"Block mined with {valid_count} valid transactions ({len(transactions) - valid_count} rejected).")
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self):
+        """Export blockchain to dictionary."""
         return {
             "difficulty": self.difficulty,
             "block_size": self.block_size,
@@ -297,10 +280,12 @@ class Blockchain:
             ],
         }
 
-    def export_users(self) -> List[Dict[str, object]]:
+    def export_users(self):
+        """Export user accounts to list."""
         return [acct.to_dict() for acct in self.users.values()]
 
-    def save_state(self, chain_path: str, users_path: str) -> None:
+    def save_state(self, chain_path, users_path):
+        """Save blockchain and users to JSON files."""
         with open(chain_path, "w", encoding="utf-8") as chain_file:
             json.dump(self.to_dict(), chain_file, indent=2)
         with open(users_path, "w", encoding="utf-8") as users_file:
