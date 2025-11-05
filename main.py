@@ -1,4 +1,4 @@
-#run with "py -3.12 main.py", other versions print a shit ton of errors (still works tho, just annoying)"
+# run with "py -3.12 main.py", older versions may print noisy warnings
 
 import json
 import msvcrt
@@ -14,64 +14,72 @@ TRANSACTIONS = "json/transactions.json"
 CHAIN_DUMP = "json/blockchain.json"
 
 
-def write_json(path, key, data):
+def save_json(path, key, data):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump({key: data}, f, indent=2)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump({key: data}, handle, indent=2)
 
 
-def read_json(path, key):
+def load_json(path, key):
     if not os.path.exists(path):
         return []
-    with open(path, "r", encoding="utf-8") as f:
-        payload = json.load(f)
+    with open(path, "r", encoding="utf-8") as handle:
+        payload = json.load(handle)
     return payload.get(key, [])
 
 
-def run_blockchain() -> None:
-    users = read_json(USERS_START, "users")
-    transactions = read_json(TRANSACTIONS, "transactions")
+def mine_blockchain():
+    # Load users and check if exist
+    users = load_json(USERS_START, "users")
     if not users:
-        print("\nNo user records found. Please generate users before starting the miner.\n")
+        print("\nNo users found. Generate users before mining.\n")
         return
+
+    # Load transactions and check if exist
+    transactions = load_json(TRANSACTIONS, "transactions")
     if not transactions:
-        print("\nNo transactions found. Please generate transactions before mining.\n")
+        print("\nNo transactions found. Generate transactions before mining.\n")
         return
 
     print(f"\nLoaded {len(users)} users and {len(transactions)} pending transactions.")
+    
+    # Init blockchain and start mining
     chain = Blockchain(users=users, transactions=transactions, difficulty=3, block_size=100)
-    chain.mine_pending_transactions()
-    chain.save_state(CHAIN_DUMP, USERS_END)
+    chain.mine_pending_transactions(chain_path=CHAIN_DUMP, users_path=USERS_END)
     if chain.rejected:
         print(f"{len(chain.rejected)} transactions were rejected during validation.")
-    print(f"Blockchain now contains {len(chain.chain)} blocks. State saved to {CHAIN_DUMP}.")
+    print(f"Blockchain now contains {len(chain.chain)} blocks. Saved to {CHAIN_DUMP}.")
 
 
-def menu_choice() -> bytes:
-    choice = msvcrt.getch()
-    while choice not in [b"1", b"2", b"3", b"4"]:
-        print("\nPlease enter 1, 2, 3, or 4.\n")
+def menu_choice():
+    while True:
         choice = msvcrt.getch()
-    return choice
+        if choice in (b"1", b"2", b"3", b"4"):
+            return choice.decode("ascii")
+        print("\nPlease press 1, 2, 3, or 4.\n")
 
 
-if __name__ == "__main__":
+def main():
     while True:
         print("1. Generate Users\n2. Generate Transactions\n3. Mine Blockchain\n4. Exit")
-        selected = menu_choice()
+        choice = menu_choice()
 
-        if selected == b"1":
+        if choice == "1":
             users = userGeneration()
-            write_json(USERS_START, "users", users)
-            print("\nUser dataset generated.\n")
-        elif selected == b"2":
+            save_json(USERS_START, "users", users)
+            print("\nUsers generated.\n")
+        elif choice == "2":
             if not os.path.exists(USERS_START):
                 print("\nPlease generate users before generating transactions.\n")
             else:
                 transactions = transactionGeneration()
-                write_json(TRANSACTIONS, "transactions", transactions)
-                print("\nTransaction dataset generated.\n")
-        elif selected == b"3":
-            run_blockchain()
-        elif selected == b"4":
-            exit()
+                save_json(TRANSACTIONS, "transactions", transactions)
+                print("\nTransactions generated.\n")
+        elif choice == "3":
+            mine_blockchain()
+        elif choice == "4":
+            break
+
+
+if __name__ == "__main__":
+    main()

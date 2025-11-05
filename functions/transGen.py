@@ -2,30 +2,9 @@ import json
 import random
 from functions.hash import HashFunction
 
-MAX_TRANSACTIONS = 1000
-
+MAX_TRANSACTIONS = 10000
 
 def transactionGeneration():
-    """
-    Generate a list of random transactions based on initial user balances.
-    This function creates a UTXO (Unspent Transaction Output) set from user balances
-    and generates up to 10,000 random transactions by selecting random inputs and 
-    receivers, splitting amounts, and creating appropriate outputs with change.
-    Returns:
-        list: A list of transaction dictionaries, where each transaction contains:
-            - transaction_id (str): Hash of the transaction
-            - inputs (list): List of input UTXO IDs being spent
-            - outputs (list): List of output UTXOs, including:
-                - ID (str): Hash identifier for the UTXO
-                - owner (str): Public key of the UTXO owner
-                - amount (int): Amount in the UTXO
-    Notes:
-        - Reads user data from "json/users_start.json"
-        - Each transaction transfers 1-15% of the input amount to a random receiver
-        - Change is returned to the original owner
-        - Uses HashFunction for generating unique IDs
-        - Stops early if UTXO set becomes empty
-    """
     def _new_utxo(owner: str, amount: int) -> dict:
         return {
             "ID": HashFunction(f"{owner}{amount}{random.random()}"),

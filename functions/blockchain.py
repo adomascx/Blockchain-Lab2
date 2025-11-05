@@ -48,6 +48,7 @@ class Transaction:
 
     @classmethod
     def from_dict(cls, payload, utxo_map=None):
+        
         # Handle UTXO-based transactions
         if "inputs" in payload and "outputs" in payload:
             outputs = payload.get("outputs", []) or []
@@ -129,7 +130,7 @@ class Blockchain:
         self.pending_transactions = [Transaction.from_dict(tx, utxo_map) for tx in transactions if tx]
         random.shuffle(self.pending_transactions)
 
-    def mine_pending_transactions(self):
+    def mine_pending_transactions(self, chain_path=None, users_path=None):
         """Mine all pending transactions using parallel mining."""
         block_index = 1
         max_attempts = 1000
@@ -149,7 +150,7 @@ class Blockchain:
                 candidate = Block(
                     transactions=[tx.to_dict() for tx in block_txs],
                     prev_block_hash=prev_hash,
-                    version="1.0.0",
+                    version="0.2",
                     difficulty_target=self.difficulty,
                     nonce=random.randint(0, 1000000)
                 )
@@ -157,8 +158,6 @@ class Blockchain:
             
             if not candidates:
                 break
-            
-            print(f"Mining {len(candidates)} candidates in parallel...")
             
             # Parallel mining
             mined_block = None
@@ -196,6 +195,8 @@ class Blockchain:
             
             self._commit_block(mined_block, mined_txs)
             self.chain.append(mined_block)
+            if chain_path:
+                self.save_state(chain_path, users_path)
             block_index += 1
 
     def _select_transactions_for_candidate(self):
@@ -284,9 +285,10 @@ class Blockchain:
         """Export user accounts to list."""
         return [acct.to_dict() for acct in self.users.values()]
 
-    def save_state(self, chain_path, users_path):
+    def save_state(self, chain_path, users_path=None):
         """Save blockchain and users to JSON files."""
         with open(chain_path, "w", encoding="utf-8") as chain_file:
             json.dump(self.to_dict(), chain_file, indent=2)
-        with open(users_path, "w", encoding="utf-8") as users_file:
-            json.dump({"users": self.export_users()}, users_file, indent=2)
+        if users_path:
+            with open(users_path, "w", encoding="utf-8") as users_file:
+                json.dump({"users": self.export_users()}, users_file, indent=2)

@@ -5,7 +5,6 @@ import sys
 from typing import Iterable
 
 def HashFunction(string: str):
-    
     _MASK64 = (1 << 64) - 1
 
     # 64-bit unsigned constants
