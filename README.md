@@ -1,4 +1,11 @@
-# Blockchain Lab v0.2
+# VU Blockchain 2 Laboratorinis Darbas
+
+## Komandos Nariai
+
+**Mūsų Komanda:**
+
+- Adomas Lukoševičius (bloko bei blokų grandinės implementacija, dokumentacija)
+- Nojus Petrušis (vartotojų bei transakcijų generavimas, UTXO bei Merkle Tree implementacija)
 
 ## Greita apžvalga
 
@@ -11,7 +18,8 @@
 
 ## Turinys
 
-- [Blockchain Lab v0.2](#blockchain-lab-v02)
+- [VU Blockchain 2 Laboratorinis Darbas](#vu-blockchain-2-laboratorinis-darbas)
+  - [Komandos Nariai](#komandos-nariai)
   - [Greita apžvalga](#greita-apžvalga)
   - [Turinys](#turinys)
   - [Kaip paleisti](#kaip-paleisti)
