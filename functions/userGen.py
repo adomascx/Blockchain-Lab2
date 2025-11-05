@@ -1,10 +1,9 @@
-import json
 import random
 from functions.hash import HashFunction
 
-def userGeneration():
+def userGeneration(users_count = 1000):
     users = []
-    for i in range(1000):
+    for i in range(users_count):
         users.append({
             "name": "bob" + str(i+1),
             "public_key": f"{HashFunction(i+1)}",

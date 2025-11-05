@@ -22,6 +22,7 @@
     - [Taisyklės](#taisyklės)
     - [Kasimas](#kasimas)
   - [Failų žemėlapis](#failų-žemėlapis)
+  - [JSON išvestis](#json-išvestis)
   - [Nustatymai](#nustatymai)
 
 ## Kaip paleisti
@@ -41,13 +42,15 @@
      * `json/blockchain.json` – blokų grandinė;
      * `json/users_end.json` – galutiniai balansai.
 
+   * `4` – išeina iš programos.
+
 Jei kažko trūksta (pvz., nesugeneruoti vartotojai ar transakcijos), programa tai pasakys ir sustos.
 
 ## Ką pamatysite konsolėje
 
-* Transakcijų rinkimo ir validavimo žingsnius.
-* Kasančio nonco paiešką.
-* Rasto bloko suvestinę: antraštę, transakcijų skaičių, hash.
+* Transakcijų rinkimo ir validavimo žingsnius (atmestos transakcijos su priežastimi).
+* Kasančio nonco paiešką (kas 5 000 iteracijų – tarpinius pranešimus).
+* Rasto bloko suvestinę: antraštę, transakcijų skaičių, hash, bendrą grandinės ilgį.
 
 ### Konsolės pavyzdys
 
@@ -97,11 +100,17 @@ Generatorius kuria UTXO tipo pervedimus ir palaiko laikiną UTXO rinkinį, kad n
 
 * `main.py` – paprastas meniu trijoms užduotims.
 * `functions/block.py` – bloko struktūra ir šaknies skaičiavimas.
-* `functions/blockchain.py` – validavimas, PoW, būsena, išsaugojimas.
+* `functions/blockchain.py` – validavimas, PoW, būsena, atmestų transakcijų registras, išsaugojimas.
 * `functions/userGen.py`, `functions/transGen.py` – duomenų generatoriai.
 * `functions/hash.py` – centralizuotas PHA256 kvietimas.
 * `json/*.json` – įvestys ir išvestys.
 * `console-output.png` – konsolės pavyzdys.
+
+## JSON išvestis
+
+* `json/blockchain.json` – metaduomenys (`difficulty`, `block_size`), kiekvieno bloko `header`/`transactions`/`hash`, bei sąrašas `rejected_transactions` su priežastimis.
+* `json/users_end.json` – galutiniai vartotojų balansai (`users` masyvas).
+* `json/transactions.json` – pradinės transakcijos (`transactions` masyvas). Miner’io metu jos perskirstomos į blokus arba atmetamos.
 
 ## Nustatymai
 

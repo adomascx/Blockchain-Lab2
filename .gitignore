@@ -1,5 +1,10 @@
-# Python virtual environment
+# Python environment
 .venv
-/functions/__pycache__
+*/__pycache__
 
+# Generated JSON files
 json/
+
+# Misc MD files
+*.md
+!README.md
