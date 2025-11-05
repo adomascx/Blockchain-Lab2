@@ -1,97 +1,61 @@
 from datetime import datetime
-from typing import List, Dict, Any
+
 from functions.hash import HashFunction
 
 
 class Block:
-    """Represent a block composed of a header and an ordered transaction list."""
-    
-    def __init__(
-        self,
-        transactions: List[Dict[str, Any]],
-        prev_block_hash: str = "0" * 64,
-        version: str = "1.0.0",
-        difficulty_target: int = 4,
-        nonce: int = 0
-    ):
-        """
-        Initialize a new block.
-        
-        Args:
-            transactions: List of transaction dictionaries
-            prev_block_hash: Hash of the previous block in the chain
-            version: Data structure version
-            difficulty_target: Difficulty level for Proof-of-Work
-            nonce: Random number used in Proof-of-Work process
-        """
-        # Header components
+    def __init__(self, transactions, prev_block_hash="0" * 64, version="0.2", difficulty_target=4, nonce=0):
         self.prev_block_hash = prev_block_hash
         self.timestamp = datetime.now().isoformat()
         self.version = version
         self.difficulty_target = difficulty_target
         self.nonce = nonce
-        
-        # Body
-        self.transactions = transactions
-        
-        # Calculate the Merkle root using Merkle Tree algorithm
+        self.transactions = transactions if transactions else []
         self.merkle_root = self._calculate_merkle_root()
-    
-    def _calculate_merkle_root(self) -> str:
-        """Calculate Merkle Root using binary tree algorithm."""
+
+    def _calculate_merkle_root(self):
         if not self.transactions:
             return HashFunction("")
-        
-        current_level = [str(tx.get("transaction_id", "")) for tx in self.transactions]
-        
-        while len(current_level) > 1:
+
+        # Build Merkle levels with a basic balanced approach
+        level = []
+        for tx in self.transactions:
+            level.append(str(tx.get("transaction_id", "")))
+
+        while len(level) > 1:
+            if len(level) % 2 == 1:
+                level.append(level[-1])
+
             next_level = []
-            for i in range(0, len(current_level), 2):
-                left = current_level[i]
-                right = current_level[i + 1] if i + 1 < len(current_level) else left
-                next_level.append(HashFunction(left + right))
-            current_level = next_level
-        
-        return current_level[0]
-    
-    def get_header(self) -> Dict[str, Any]:
-        """Return the block header as a dictionary."""
+            index = 0
+            while index < len(level):
+                combined = level[index] + level[index + 1]
+                next_level.append(HashFunction(combined))
+                index += 2
+            level = next_level
+
+        return level[0]
+
+    def get_header(self):
         return {
             "PrevBlockHash": self.prev_block_hash,
             "Timestamp": self.timestamp,
             "Version": self.version,
             "MerkleRoot": self.merkle_root,
             "Nonce": self.nonce,
-            "DifficultyTarget": self.difficulty_target
+            "DifficultyTarget": self.difficulty_target,
         }
-    
-    def get_body(self) -> List[Dict[str, Any]]:
-        """Return the transactions stored in the block body."""
-        return self.transactions
-    
-    def calculate_hash(self) -> str:
-        """Return the hash of the serialized block header."""
-        header_string = str(self.get_header())
-        return HashFunction(header_string)
-    
-    def __repr__(self) -> str:
-        """Provide a concise representation for debugging."""
-        return f"Block(PrevHash={self.prev_block_hash[:16]}..., Transactions={len(self.transactions)}, Nonce={self.nonce})"
-    
-    def __str__(self) -> str:
-        """Provide a human-readable description of the block contents."""
-        return f"""
-Block Details:
---------------
-Header:
-  Previous Block Hash: {self.prev_block_hash}
-  Timestamp: {self.timestamp}
-  Version: {self.version}
-  Merkle Root: {self.merkle_root}
-  Nonce: {self.nonce}
-  Difficulty Target: {self.difficulty_target}
 
-Body:
-  Transactions: {len(self.transactions)}
-  Block Hash: {self.calculate_hash()}
-"""
+    def get_body(self):
+        return self.transactions
+
+    def calculate_hash(self):
+        header_parts = [
+            self.prev_block_hash,
+            self.timestamp,
+            self.version,
+            self.merkle_root,
+            str(self.nonce),
+            str(self.difficulty_target),
+        ]
+        return HashFunction("|".join(header_parts))
