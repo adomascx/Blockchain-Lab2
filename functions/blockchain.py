@@ -1,47 +1,44 @@
 from __future__ import annotations
-
 import json
 import random
 from dataclasses import dataclass, field
 from multiprocessing import Pool, cpu_count
-
-from functions.block import Block
+from functions.block import block
 from functions.hash import HashFunction
 
-
 def _mine_candidate_worker(args):
-    """Worker function for parallel mining of a single candidate block."""
+    """Worker for mining a single candidate block."""
     
-    candidate, max_attempts, difficulty, candidate_idx = args
+    candidate, max_attempts, difficulty, candidate_index = args
     prefix = "0" * difficulty
     
     # Try to find a valid nonce within max_attempts
     for _ in range(max_attempts):
         computed_hash = candidate.calculate_hash()
         if computed_hash.startswith(prefix):
-            return (candidate_idx, candidate, computed_hash, True)
+            return (candidate_index, candidate, computed_hash, True)
         candidate.nonce += 1
 
     # if max_attempts reached, return failure
-    return (candidate_idx, None, None, False)
+    return (candidate_index, None, None, False)
 
 
 @dataclass
 class Transaction:
-    """Represents a blockchain transaction with I/O and ID (UTXO model)."""
+    """Represents a transaction with I/O and ID (UTXO model)."""
     inputs: list[str] = field(default_factory=list)
     outputs: list[dict] = field(default_factory=list)
     transaction_id: str = ""
 
     def __post_init__(self):
-        # Generate transaction ID if not given
+        # Generate transaction ID
         if not self.transaction_id:
             self.transaction_id = self._generate_id()
 
     @classmethod
     def from_dict(cls, payload):
-        """Create Transaction instance from dict (JSON)"""
-        inputs = [str(value) for value in payload.get("inputs", []) or []]
+        """Create Transaction instance from dict (for JSON)."""
+        inputs = [str(value) for value in payload.get("inputs", [])]
         outputs = [
             {
                 "ID": str(output.get("ID", "")),
@@ -54,7 +51,7 @@ class Transaction:
         return cls(inputs=inputs, outputs=outputs, transaction_id=tx_id)
 
     def to_dict(self):
-        """Export Transaction to dict (JSON)"""
+        """Export Transaction to dict (for JSON)."""
         return {
             "transaction_id": self.transaction_id,
             "inputs": self.inputs,
@@ -62,7 +59,7 @@ class Transaction:
         }
 
     def _generate_id(self):
-        """Helper - Generate transaction ID from hashed I/O"""
+        """Helper - Generate transaction ID from hashed I/O."""
         payload_parts = ["".join(self.inputs)]
         payload_parts.append(
             "".join(str(out.get("ID", "")) for out in self.outputs)
@@ -70,8 +67,8 @@ class Transaction:
         return HashFunction("|".join(payload_parts))
 
 
-class Blockchain:
-    """Basic blockchain implementation with parallel mining and UTXO"""
+class blockchain:
+    """Basic blockchain implementation with parallel mining and UTXO."""
     
     def __init__(self, users, transactions, difficulty=3, block_size=100):
         self.difficulty = difficulty
@@ -79,7 +76,6 @@ class Blockchain:
         self.chain = []
         self.rejected_count = 0
         self.utxo_index = {}
-
         # Parse all pending transactions
         self.pending_transactions = [Transaction.from_dict(tx) for tx in transactions if tx]
 
@@ -88,11 +84,13 @@ class Blockchain:
         block_index = len(self.chain) + 1
         max_attempts = 1000
 
+        # Main mining loop
         while self.pending_transactions:
             print(f"\n=== Mining Block #{block_index} ===")
             print(f"Pending transactions: {len(self.pending_transactions)}")
 
             prev_hash = self.chain[-1].calculate_hash() if self.chain else "0" * 64
+            
             candidates = self._build_candidates(prev_hash)
             if not candidates:
                 break
@@ -104,8 +102,27 @@ class Blockchain:
             self._finalize_mined_block(mined_block, mined_txs, chain_path)
             block_index += 1
 
+    def _build_candidates(self, prev_hash):
+        """Build candidate blocks for mining."""
+        candidates = []
+        for _ in range(5):
+            block_txs = self._select_transactions_for_candidate()
+            if not block_txs:
+                break
+
+            candidate = block(
+                transactions=[tx.to_dict() for tx in block_txs],
+                prev_block_hash=prev_hash,
+                version="0.2",
+                difficulty_target=self.difficulty,
+                nonce=random.randint(0, 1_000_000),
+            )
+            candidates.append((candidate, block_txs))
+
+        return candidates
+    
     def _select_transactions_for_candidate(self):
-        """Select valid transactions for a candidate block (non-destructive)."""
+        """Select valid transactions for a candidate block."""
         if not self.pending_transactions:
             return []
 
@@ -125,24 +142,6 @@ class Blockchain:
 
         return selection
 
-    def _build_candidates(self, prev_hash):
-        candidates = []
-        for _ in range(5):
-            block_txs = self._select_transactions_for_candidate()
-            if not block_txs:
-                break
-
-            candidate = Block(
-                transactions=[tx.to_dict() for tx in block_txs],
-                prev_block_hash=prev_hash,
-                version="0.2",
-                difficulty_target=self.difficulty,
-                nonce=random.randint(0, 1_000_000),
-            )
-            candidates.append((candidate, block_txs))
-
-        return candidates
-
     def _mine_candidates(self, candidates, max_attempts):
         mined_block = None
         mined_txs = []
@@ -158,11 +157,11 @@ class Blockchain:
             with Pool(processes=num_workers) as pool:
                 results = pool.map(_mine_candidate_worker, worker_args)
 
-            for candidate_idx, candidate, _result_hash, success in results:
+            for candidate_index, candidate, _result_hash, success in results:
                 if success:
                     mined_block = candidate
-                    mined_txs = candidates[candidate_idx][1]
-                    print(f"Candidate #{candidate_idx + 1} found valid hash! (Nonce: {mined_block.nonce})")
+                    mined_txs = candidates[candidate_index][1]
+                    print(f"Candidate #{candidate_index + 1} found valid hash! (max_attempts: {attempts})") # type: ignore
                     break
 
             if mined_block is None:
@@ -205,7 +204,7 @@ class Blockchain:
         print(f"Block mined with {valid_count} valid transactions ({rejected} rejected).")
 
     def to_dict(self):
-        """Export blockchain to dict (JSON)."""
+        """Export blockchain to dict (for JSON)."""
         return {
             "difficulty": self.difficulty,
             "block_size": self.block_size,
@@ -224,3 +223,5 @@ class Blockchain:
         """Save blockchain state to JSON"""
         with open(chain_path, "w", encoding="utf-8") as chain_file:
             json.dump(self.to_dict(), chain_file, indent=2)
+
+# I am going to cry if I have to deal with this code for one more second

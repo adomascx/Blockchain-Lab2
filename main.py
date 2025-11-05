@@ -1,10 +1,9 @@
-# run with "py -3.12 main.py", older versions may print noisy warnings
+# run with `py -3.12 main.py` nes kitaip errorus meto (thank you python)
 
 import json
 import msvcrt
 import os
-
-from functions.blockchain import Blockchain
+from functions.blockchain import blockchain
 from functions.transGen import transactionGeneration
 from functions.userGen import userGeneration
 
@@ -43,7 +42,7 @@ def mine_blockchain():
     print(f"\nLoaded {len(users)} users and {len(transactions)} pending transactions.")
     
     # Init blockchain and start mining
-    chain = Blockchain(users=users, transactions=transactions, difficulty=3, block_size=100)
+    chain = blockchain(users=users, transactions=transactions, difficulty=3, block_size=100)
     chain.mine_pending_transactions(chain_path=CHAIN_DUMP)
     
     print(f"\nBlockchain now contains {len(chain.chain)} blocks. Saved to {CHAIN_DUMP}.")

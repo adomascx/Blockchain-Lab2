@@ -1,9 +1,7 @@
 from datetime import datetime
-
 from functions.hash import HashFunction
 
-
-class Block:
+class block:
     def __init__(self, transactions, prev_block_hash="0" * 64, version="0.2", difficulty_target=3, nonce=0):
         self.prev_block_hash = prev_block_hash
         self.timestamp = datetime.now().isoformat()
@@ -14,10 +12,10 @@ class Block:
         self.merkle_root = self._calculate_merkle_root()
 
     def _calculate_merkle_root(self):
+        """Calculate Merkle root of the block's transactions."""
         if not self.transactions:
             return HashFunction("")
 
-        # Build Merkle levels with a basic balanced approach
         level = []
         for tx in self.transactions:
             level.append(str(tx.get("transaction_id", "")))
@@ -37,6 +35,7 @@ class Block:
         return level[0]
 
     def get_header(self):
+        """getter for block's header."""
         return {
             "PrevBlockHash": self.prev_block_hash,
             "Timestamp": self.timestamp,
@@ -47,9 +46,11 @@ class Block:
         }
 
     def get_body(self):
+        """getter for block's transactions."""
         return self.transactions
 
     def calculate_hash(self):
+        """Calculate the block's hash based on its header."""
         header_parts = [
             self.prev_block_hash,
             self.timestamp,

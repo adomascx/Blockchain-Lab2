@@ -1,10 +1,10 @@
 from __future__ import annotations
-
 import math
 import sys
 from typing import Iterable
 
 def HashFunction(string: str):
+    """Our custom hash function."""
     _MASK64 = (1 << 64) - 1
 
     # 64-bit unsigned constants
